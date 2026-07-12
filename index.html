@@ -264,7 +264,7 @@ if("serviceWorker" in navigator){ window.addEventListener("load",function(){ nav
   <div class="login-card">
     <div class="brandmark">
       <div class="dot">CA</div>
-      <div><h1>Comunicación y Anuncios</h1><p>Acceso con privilegio de servicio</p></div>
+      <div><h1 id="brandTitle">Comunicación y Anuncios</h1><p id="brandSub">Acceso con privilegio de servicio</p></div>
     </div>
     <div class="field">
       <label for="li-user">Usuario</label>
@@ -428,6 +428,11 @@ function seed(){
     },
     territoriosCatalog: defaultTerr(),
     discursantesCatalog: [],
+    config: {
+      congregacion: "",
+      mapId: "",
+      grupos: 5
+    },
     permsConfig: {
       reuniones:   ["Siervo ministerial"],
       discursos:   [],
@@ -456,6 +461,10 @@ function loadData(){
     if(!Array.isArray(d.discursantesCatalog)) d.discursantesCatalog = [];
     if(!d.permsConfig || typeof d.permsConfig!=="object") d.permsConfig = seed().permsConfig;
     for(const k of ["reuniones","discursos","anuncios","territorios"]) if(!Array.isArray(d.permsConfig[k])) d.permsConfig[k]=[];
+    if(!d.config || typeof d.config!=="object") d.config = seed().config;
+    if(typeof d.config.congregacion!=="string") d.config.congregacion="";
+    if(typeof d.config.mapId!=="string") d.config.mapId="";
+    if(!(d.config.grupos>=1 && d.config.grupos<=12)) d.config.grupos=5;
     if(!d.terrSeeded && d.territoriosCatalog.length===0){ d.territoriosCatalog = defaultTerr(); }
     d.terrSeeded = true;
     // cuenta de prueba "publicador" (para revisar la vista sin privilegios)
@@ -552,7 +561,7 @@ const SECTIONS = {
     title:"Limpieza", group:"Reuniones", detailView:true, maxDays:2,
     desc:"Asigna la limpieza a un grupo en dos días.",
     fields:[
-      {k:"grupo",l:"Grupo",t:"select",opts:["Grupo 1","Grupo 2","Grupo 3","Grupo 4","Grupo 5"],req:true},
+      {k:"grupo",l:"Grupo",t:"select",dyn:"grupo",req:true},
       {k:"fecha",l:"Primer día",t:"date",req:true},
       {k:"fecha2",l:"Segundo día (opcional)",t:"date"},
       {k:"notas",l:"Notas",t:"textarea"}
@@ -668,7 +677,7 @@ const TOPNAV = [
     {id:"territorios",label:"Servicio"}
   ]}
 ];
-const USERS_TOP = {id:"usuarios", label:"Usuarios", full:"Administración", ico:SVGI.usuarios, subs:[{id:"usuarios",label:"Usuarios"},{id:"permisos",label:"Permisos"}]};
+const USERS_TOP = {id:"usuarios", label:"Usuarios", full:"Administración", ico:SVGI.usuarios, subs:[{id:"usuarios",label:"Usuarios"},{id:"permisos",label:"Permisos"},{id:"config",label:"Configuración"}]};
 const CHILD_TAB = {};   // (sin sub-toggle)
 let TOPITEMS = [];
 
@@ -690,7 +699,19 @@ function badgeFor(key,val){
   return `<span class="badge ${map[val]||"b-blue"}">${esc(val)}</span>`;
 }
 const BADGE_FIELDS = new Set(["estado","prioridad","tipo"]);
-const TERR_MID = "1RBBNN9qO_P3EvbnErFAtkWcZxqhn8TY";
+const TERR_MID_DEFAULT = "1RBBNN9qO_P3EvbnErFAtkWcZxqhn8TY";
+function terrMid(){ return (DATA && DATA.config && DATA.config.mapId) || TERR_MID_DEFAULT; }
+function congName(){ return (DATA && DATA.config && DATA.config.congregacion) || ""; }
+// extrae el "mid" de un enlace de Google My Maps (o acepta el mid directo)
+function parseMid(v){
+  v=String(v||"").trim(); if(!v) return "";
+  const m=v.match(/[?&]mid=([^&\s]+)/);
+  return m ? m[1] : v;
+}
+function grupoOpts(){
+  const n=(DATA&&DATA.config&&DATA.config.grupos)||5;
+  return Array.from({length:n},(_,i)=>"Grupo "+(i+1));
+}
 
 /* ============================================================
    LOGIN
@@ -778,6 +799,7 @@ function go(sectionId, topId){
   // contenido
   if(sectionId==="usuarios") renderUsers();
   else if(sectionId==="permisos") renderPerms();
+  else if(sectionId==="config") renderConfig();
   else if(sectionId==="calendario") renderCalendar();
   else renderSection(sectionId);
   renderReminders();
@@ -807,13 +829,13 @@ function renderSection(id){
   if(cfg.map){
     mapBlock = `
       <div class="card" style="padding:0;overflow:hidden;margin-bottom:8px">
-        <iframe title="Mapa de territorios" src="https://www.google.com/maps/d/embed?mid=${TERR_MID}" style="width:100%;height:300px;border:0;display:block"></iframe>
+        <iframe title="Mapa de territorios" src="https://www.google.com/maps/d/embed?mid=${terrMid()}" style="width:100%;height:300px;border:0;display:block"></iframe>
       </div>
       <p class="meta" style="margin:0 0 10px">Si el mapa se ve en blanco: en tu Google My Maps ponlo como "cualquiera con el enlace puede ver". En la vista previa de Claude no carga; en la app instalada (GitHub Pages) sí.</p>
       <div class="hd-actions" style="margin-bottom:16px">
         <button class="btn ghost" onclick="openMapModal()">Ver mapa en grande</button>
         ${canAdd(id,USER.role)?`<button class="btn ghost" onclick="openTerrCatalog()">Lista de territorios</button>`:""}
-        <a class="btn ghost" href="https://www.google.com/maps/d/viewer?mid=${TERR_MID}" target="_blank" rel="noopener">Abrir en Google</a>
+        <a class="btn ghost" href="https://www.google.com/maps/d/viewer?mid=${terrMid()}" target="_blank" rel="noopener">Abrir en Google</a>
       </div>`;
   }
 
@@ -984,7 +1006,7 @@ function fieldHTML(f,val){
   if(f.t==="maps") return `<input id="f-${f.k}" type="url" value="${esc(v)}" placeholder="Pega el enlace de Google Maps (https://...)">`;
   if(f.t==="textarea") return `<textarea id="f-${f.k}" rows="3" placeholder="${esc(f.l)}">${esc(v)}</textarea>`;
   if(f.t==="select"){
-    let source = f.dyn==="terr" ? (DATA.territoriosCatalog||[]) : f.dyn==="disc" ? (DATA.discursantesCatalog||[]) : (f.opts||[]);
+    let source = f.dyn==="terr" ? (DATA.territoriosCatalog||[]) : f.dyn==="disc" ? (DATA.discursantesCatalog||[]) : f.dyn==="grupo" ? grupoOpts() : (f.opts||[]);
     if(f.dyn==="terr" && !source.length){
       return `<select id="f-${f.k}"><option value="">— Agrega territorios en "Lista de territorios" —</option></select>`;
     }
@@ -1329,7 +1351,7 @@ function openDay(iso){
 function closeDay(){ $("#dayov").classList.remove("show"); }
 function evClick(id){ openDetail("calendario",id); }
 /* mapa en grande, dentro de la app */
-function openMapModal(){ const f=$("#map-frame"); if(f && !f.getAttribute("src")) f.setAttribute("src","https://www.google.com/maps/d/embed?mid="+TERR_MID); $("#mapov").classList.add("show"); }
+function openMapModal(){ const f=$("#map-frame"); if(f) f.setAttribute("src","https://www.google.com/maps/d/embed?mid="+terrMid()); $("#mapov").classList.add("show"); }
 function closeMapModal(){ $("#mapov").classList.remove("show"); }
 
 /* ============================================================
@@ -1389,6 +1411,45 @@ function togglePerm(group, role, on){
   if(on && i<0) arr.push(role);
   if(!on && i>=0) arr.splice(i,1);
   save(DATA); toast("Permiso actualizado");
+}
+function renderConfig(){
+  const c=DATA.config||{};
+  $("#panel").innerHTML = `
+    <div class="panel-head"><div><h2>Configuración</h2><p>Datos propios de esta congregación. Cada congregación pone los suyos.</p></div></div>
+    <div class="card" style="padding:16px">
+      <div class="field"><label>Nombre de la congregación</label>
+        <input id="cf-name" type="text" value="${esc(c.congregacion||"")}" placeholder="Ej. Ameyalco"></div>
+      <div class="field"><label>Mapa de territorios (enlace de Google My Maps)</label>
+        <input id="cf-map" type="text" value="${esc(c.mapId||"")}" placeholder="Pega aquí el enlace de tu mapa">
+        <p class="meta" style="margin:6px 0 0">Pega el enlace completo; la app toma lo que necesita. El mapa debe estar compartido como "cualquiera con el enlace puede ver". Si lo dejas vacío, se usa el mapa de ejemplo.</p></div>
+      <div class="field"><label>Grupos de limpieza</label>
+        <input id="cf-grupos" type="number" min="1" max="12" value="${(c.grupos||5)}">
+        <p class="meta" style="margin:6px 0 0">Cuántos grupos tiene la congregación (se usarán en Reuniones → Limpieza).</p></div>
+      <button class="btn accent" id="cf-save">Guardar configuración</button>
+    </div>
+    <div class="card" style="padding:16px;margin-top:12px">
+      <div class="board-date">Territorios</div>
+      <p class="meta" style="margin:0 0 10px">La lista de territorios también es propia de cada congregación.</p>
+      <button class="btn ghost" onclick="openTerrCatalog()">Editar lista de territorios</button>
+    </div>`;
+  $("#cf-save").onclick=saveConfig;
+}
+function saveConfig(){
+  DATA.config = DATA.config||{};
+  DATA.config.congregacion = $("#cf-name").value.trim();
+  DATA.config.mapId = parseMid($("#cf-map").value);
+  let g = parseInt($("#cf-grupos").value,10);
+  if(!(g>=1 && g<=12)) g=5;
+  DATA.config.grupos = g;
+  save(DATA);
+  applyBranding();
+  toast("Configuración guardada");
+  renderConfig();
+}
+function applyBranding(){
+  const n=congName();
+  const t=$("#brandTitle"); if(t) t.textContent = n ? "Comunicación · "+n : "Comunicación y Anuncios";
+  const s=$("#brandSub");   if(s) s.textContent = n ? n : "Acceso con privilegio de servicio";
 }
 function renderUsers(){
   $("#crumb").textContent="Administración · Usuarios";
@@ -1578,6 +1639,7 @@ $("#li-pass").addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
 $("#li-user").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#li-pass").focus(); });
 
 refreshLoginHint();
+applyBranding();
 
 /* exponer para tests en Node (no afecta navegador) */
 if(typeof module!=="undefined"){ module.exports={perms,canAdd,ROLES}; }
