@@ -1,0 +1,75 @@
+==========================================================
+  COMUNICACIÓN Y ANUNCIOS — Instalar como app
+==========================================================
+
+Esta carpeta contiene la app completa. Para que se pueda
+INSTALAR (con ícono, pantalla completa y uso sin conexión)
+debe abrirse desde una dirección https. La forma más fácil
+y gratis es GitHub Pages.
+
+----------------------------------------------------------
+ARCHIVOS (no cambies los nombres)
+----------------------------------------------------------
+- index.html               (la app)
+- manifest.webmanifest     (datos de la app: nombre, ícono)
+- sw.js                    (permite el uso sin conexión)
+- icon-192.png
+- icon-512.png
+- icon-512-maskable.png
+- icon-180.png
+
+Todos deben quedar en la MISMA carpeta.
+
+----------------------------------------------------------
+PASO 1 — Subir a GitHub Pages (una sola vez)
+----------------------------------------------------------
+1. Entra a https://github.com e inicia sesión
+   (o crea una cuenta gratis).
+2. Crea un repositorio nuevo (botón "New").
+   Ponle un nombre, por ejemplo: comunicacion
+   Marca "Public" y crea el repositorio.
+3. En el repositorio: "Add file" > "Upload files".
+   Arrastra TODOS los archivos de esta carpeta y confirma
+   (botón "Commit changes").
+4. Ve a "Settings" (Configuración) > "Pages".
+   En "Branch" elige "main" y carpeta "/ (root)", y "Save".
+5. Espera 1-2 minutos. Aparecerá una dirección como:
+   https://TU-USUARIO.github.io/comunicacion/
+   Esa es la dirección de tu app.
+
+----------------------------------------------------------
+PASO 2 — Instalar en el CELULAR
+----------------------------------------------------------
+Android (Chrome):
+  - Abre la dirección.
+  - Toca el menú (3 puntos) > "Instalar app" / "Agregar a
+    pantalla de inicio". (También aparece el botón
+    "Instalar app" dentro de la pantalla de acceso.)
+
+iPhone/iPad (Safari):
+  - Abre la dirección en Safari.
+  - Toca Compartir (el cuadro con la flecha) >
+    "Agregar a pantalla de inicio".
+
+----------------------------------------------------------
+PASO 3 — Instalar en la COMPUTADORA
+----------------------------------------------------------
+Chrome o Edge:
+  - Abre la dirección.
+  - En la barra de direcciones aparece un ícono de instalar
+    (una pantalla con una flecha), o menú > "Instalar".
+
+----------------------------------------------------------
+NOTAS IMPORTANTES
+----------------------------------------------------------
+- Cuenta inicial: usuario "anciano", contraseña "1234".
+  Cámbiala y crea las cuentas reales al entrar.
+- Los datos y los archivos adjuntos se guardan EN CADA
+  DISPOSITIVO (no se comparten entre teléfonos todavía).
+  Compartir entre dispositivos sería la versión en la nube.
+- Para importar archivos Excel/ODS se necesita conexión a
+  internet. El CSV y el resto de la app funcionan sin
+  conexión una vez instalada.
+- Si actualizas la app, vuelve a subir los archivos al mismo
+  repositorio; el número de versión del cache (sw.js) puede
+  subirse a "cca-v2" para forzar la actualización.

@@ -1,0 +1,1586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Comunicación y Anuncios</title>
+<meta name="theme-color" content="#6f54a8">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Comunicación">
+<script>
+if("serviceWorker" in navigator){ window.addEventListener("load",function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#ffffff;
+    --surface:#ffffff;
+    --ink:#262430;
+    --muted:#6f6b7d;
+    --line:#e7e3ef;
+    --primary:#6f54a8;
+    --primary-d:#5a4290;
+    --primary-soft:#efeaf7;
+    --accent:#6f54a8;
+    --accent-d:#5a4290;
+    --danger:#b3402f;
+    --ok:#2f7d4f;
+    --warn:#b78514;
+    --radius:14px;
+    --shadow:0 1px 2px rgba(40,30,70,.06),0 6px 22px rgba(40,30,70,.07);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.45}
+  button{font-family:inherit;cursor:pointer}
+  input,select,textarea{font-family:inherit;font-size:15px}
+  .hidden{display:none !important}
+
+  /* ---------- LOGIN ---------- */
+  #login{min-height:100%;display:grid;place-items:center;padding:24px}
+  .login-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--radius);box-shadow:var(--shadow);padding:30px 26px}
+  .brandmark{display:flex;align-items:center;gap:11px;margin-bottom:22px}
+  .brandmark .dot{width:38px;height:38px;border-radius:11px;background:var(--primary);
+    display:grid;place-items:center;color:#fff;font-weight:700;font-size:18px;letter-spacing:.5px}
+  .brandmark h1{font-size:18px;margin:0;font-weight:650}
+  .brandmark p{margin:0;font-size:12px;color:var(--muted)}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px}
+  .field input,.field select,.field textarea{width:100%;padding:11px 12px;border:1px solid var(--line);
+    border-radius:10px;background:#fbfaff;color:var(--ink);outline:none;transition:border-color .15s,box-shadow .15s}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary);
+    box-shadow:0 0 0 3px var(--primary-soft)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:none;border-radius:10px;
+    padding:11px 16px;font-size:14.5px;font-weight:600;background:var(--primary);color:#fff;transition:filter .15s,transform .04s}
+  .btn:hover{filter:brightness(1.06)} .btn:active{transform:translateY(1px)}
+  .btn.full{width:100%}
+  .btn.accent{background:var(--accent)} .btn.accent:hover{background:var(--accent-d)}
+  .btn.ghost{background:transparent;color:var(--primary);border:1px solid var(--line)}
+  .btn.ghost:hover{background:var(--primary-soft);filter:none}
+  .btn.danger{background:transparent;color:var(--danger);border:1px solid #e9cfc9}
+  .btn.danger:hover{background:#fbeeeb;filter:none}
+  .btn.sm{padding:6px 11px;font-size:13px;border-radius:8px}
+  .hint{margin-top:16px;font-size:12px;color:var(--muted);background:#f5f2fb;border:1px dashed var(--line);
+    border-radius:10px;padding:10px 12px;line-height:1.5}
+  .err{color:var(--danger);font-size:13px;margin-top:4px;min-height:18px}
+
+  /* ---------- APP SHELL ---------- */
+  #app{display:none;min-height:100%;flex-direction:column}
+
+  .topbar{background:var(--primary);color:#fff;
+    display:flex;align-items:center;gap:12px;padding:0 16px;height:58px;position:sticky;top:0;z-index:20}
+  .topbar .brand{display:flex;align-items:center;gap:10px;min-width:0}
+  .topbar .brand .dot{width:32px;height:32px;border-radius:9px;background:#fff;color:var(--primary);
+    display:grid;place-items:center;font-weight:800;font-size:14px;flex:none}
+  .topbar .crumb{font-weight:650;font-size:16px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .topbar .spacer{flex:1}
+  .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--primary-soft);
+    color:var(--primary-d);white-space:nowrap}
+  .topbar .pill{background:rgba(255,255,255,.22);color:#fff}
+  .topbar .exit{background:none;border:1px solid rgba(255,255,255,.55);border-radius:9px;width:36px;height:36px;
+    font-size:15px;color:#fff;flex:none}
+  .topbar .exit:hover{background:rgba(255,255,255,.15)}
+
+  .main{flex:1;overflow-y:auto;padding:18px 16px calc(94px + env(safe-area-inset-bottom))}
+  .panel{max-width:760px;margin:0 auto}
+
+  /* sub-tabs (for grouped sections) */
+  .subtabs{display:flex;gap:8px;overflow-x:auto;max-width:760px;margin:0 auto 14px;
+    padding-bottom:2px;-webkit-overflow-scrolling:touch}
+  .subtabs::-webkit-scrollbar{height:0}
+  .subtab{flex:0 0 auto;background:var(--surface);border:1px solid var(--line);border-radius:999px;
+    padding:7px 14px;font-size:13px;font-weight:600;color:var(--muted);transition:.12s}
+  .subtab:hover{border-color:var(--primary)}
+  .subtab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+  /* bottom navigation */
+  .bottomnav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;justify-content:center;
+    background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -2px 14px rgba(20,40,40,.06);
+    padding-bottom:env(safe-area-inset-bottom)}
+  .bn-item{flex:1 1 0;max-width:120px;background:none;border:none;padding:9px 2px 10px;position:relative;
+    display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);
+    font-size:11px;font-weight:600;min-width:0;transition:color .12s}
+  .bn-item .bn-ico{font-size:20px;line-height:1;transition:transform .12s}
+  .bn-item .bn-lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .bn-item:hover{color:var(--primary-d)}
+  .bn-item.active{color:var(--primary)}
+  .bn-item.active .bn-ico{transform:translateY(-1px)}
+  .bn-badge{position:absolute;top:5px;right:calc(50% - 24px);min-width:16px;height:16px;padding:0 4px;
+    background:var(--danger);color:#fff;font-size:10px;font-weight:800;border-radius:999px;
+    display:grid;place-items:center;line-height:1}
+
+  /* recordatorios */
+  #reminders{max-width:760px;margin:0 auto 14px}
+  .rhead{font-size:12px;font-weight:700;color:var(--primary-d);margin-bottom:6px}
+  .rrow{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:var(--surface);
+    border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:pointer;transition:.12s}
+  .rrow:hover{border-color:var(--primary)}
+  .rtag{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;flex:none}
+  .t-hoy{background:#fbf0d8;color:var(--warn)} .t-venc{background:#f8e4e0;color:var(--danger)}
+  .t-prox{background:var(--primary-soft);color:var(--primary-d)}
+  .rttl{flex:1;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+  .rdate{font-size:12px;color:var(--muted);flex:none}
+  .rmore{font-size:12px;color:var(--muted);padding:2px}
+
+  /* toggle segmentado (Miércoles) */
+  .seg{display:inline-flex;background:var(--primary-soft);border-radius:10px;padding:3px;margin-bottom:14px;gap:3px}
+  .seg-btn{border:none;background:none;padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;
+    color:var(--primary-d);cursor:pointer}
+  .seg-btn.active{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+
+  .due-today{color:var(--warn);font-weight:700}
+  .due-over{color:var(--danger);font-weight:700}
+
+  .vis-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);border:0}
+  .checks{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;padding:4px;background:#fbfaff}
+  .chk{display:flex;align-items:center;gap:11px;padding:10px 8px;border-radius:8px;font-size:14.5px;cursor:pointer}
+  .chk:hover{background:var(--primary-soft)}
+  .chk input{width:18px;height:18px;accent-color:var(--primary);flex:none}
+  .chk-all{border-bottom:1px solid var(--line);border-radius:8px 8px 0 0}
+  tr.rowclick{cursor:pointer}
+  tr.rowclick:hover{background:var(--primary-soft)}
+  td.chev{width:26px;text-align:right;color:var(--muted);vertical-align:middle}
+
+  .sheet-ov{position:fixed;inset:0;background:rgba(22,40,40,.45);display:none;z-index:70;
+    align-items:flex-end;justify-content:center}
+  .sheet-ov.show{display:flex}
+  .sheet-card{width:100%;max-width:460px;background:var(--surface);border-radius:16px 16px 0 0;
+    padding:12px;box-shadow:0 -10px 40px rgba(0,0,0,.25)}
+  .sheet-h{font-size:13px;color:var(--muted);font-weight:600;text-align:center;padding:6px 0 12px}
+  .sheet-b{display:block;width:100%;border:none;background:var(--primary-soft);color:var(--primary-d);
+    font-size:15px;font-weight:600;padding:14px;border-radius:12px;margin-bottom:8px;cursor:pointer}
+  .sheet-b.del{background:#fbeeeb;color:var(--danger)}
+  .sheet-b.cancel{background:transparent;color:var(--muted);margin-bottom:0}
+  @media(min-width:520px){ .sheet-ov{align-items:center} .sheet-card{border-radius:16px} }
+  .panel-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+  .hd-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .hd-actions .btn{padding:9px 13px}
+  .panel-head h2{margin:0;font-size:21px;font-weight:680;letter-spacing:-.2px}
+  .panel-head p{margin:3px 0 0;font-size:13px;color:var(--muted)}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .empty{padding:40px 20px;text-align:center;color:var(--muted)}
+  .empty .big{font-size:30px;margin-bottom:8px}
+  .empty p{margin:4px 0}
+
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  thead th{text-align:left;font-size:11.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);
+    font-weight:700;padding:13px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+  tbody td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#f7f5fc}
+  .cell-strong{font-weight:600}
+  .row-actions{display:flex;gap:6px;justify-content:flex-end}
+  .badge{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px}
+  .b-grey{background:#eeeaf4;color:#665f74}
+  .tc-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:#eeeaf4;color:#4a4358;border-radius:999px;padding:5px 6px 5px 12px;font-size:14px;font-weight:600}
+  .chip button{border:0;background:#d9d0ea;color:#5b5170;width:20px;height:20px;border-radius:50%;font-size:15px;line-height:1;cursor:pointer}
+  .b-green{background:#e3f1e9;color:var(--ok)}
+  .b-amber{background:#fbf0d8;color:var(--warn)}
+  .b-red{background:#f8e4e0;color:var(--danger)}
+  .b-blue{background:var(--primary-soft);color:var(--primary-d)}
+  .meta{font-size:11.5px;color:var(--muted);margin-top:3px}
+
+  /* table scroll on mobile */
+  .table-wrap{overflow-x:auto}
+
+  /* ---------- MODAL ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(22,40,40,.45);display:none;place-items:center;
+    z-index:50;padding:18px}
+  .overlay.show{display:grid}
+  .modal{width:100%;max-width:460px;max-height:90vh;overflow-y:auto;background:var(--surface);
+    border-radius:var(--radius);box-shadow:0 24px 60px rgba(0,0,0,.3)}
+  .modal-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+  .modal-head h3{margin:0;font-size:17px;font-weight:650}
+  .modal-head .x{background:none;border:none;font-size:22px;color:var(--muted);line-height:1;padding:0 4px}
+  .modal-body{padding:18px 20px}
+  .modal-foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+  /* ---------- CALENDAR ---------- */
+  .cal-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .cal-head .title{font-weight:650;font-size:16px;min-width:170px;text-align:center;text-transform:capitalize}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .cal-grid .dow{font-size:11px;font-weight:700;color:var(--muted);text-align:center;text-transform:uppercase;padding:4px 0}
+  .cal-cell{min-height:74px;background:#fbfaff;border:1px solid var(--line);border-radius:9px;padding:6px;position:relative}
+  .cal-cell.out{background:#f3f1f8;opacity:.55}
+  .cal-cell.today{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft)}
+  .cal-cell .dn{font-size:12px;font-weight:600;color:var(--muted)}
+  .cal-ev{margin-top:3px;font-size:10.5px;background:var(--primary-soft);color:var(--primary-d);
+    border-radius:5px;padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+  .cal-ev.t-asamblea{background:#fbf0d8;color:var(--warn)}
+  .cal-ev.t-evento{background:#e3f1e9;color:var(--ok)}
+  .cal-ev.t-otro{background:#eeeaf4;color:#665f74}
+  .cal-ev.c-reu{background:#e7e2f5;color:#4a3d86}
+  .cal-ev.c-disc{background:#dcebfb;color:#1f5f9e}
+  .cal-ev.c-anun{background:#e0f0ea;color:#1f7a55}
+  .cal-ev.c-terr{background:#fbe6d6;color:#a55a1e}
+  .cal-ev.c-limp{background:#d8f0f4;color:#136b7a}
+  .cal-ev.c-cal{background:var(--primary-soft);color:var(--primary-d)}
+  .cal-more{margin-top:3px;font-size:10px;font-weight:700;color:var(--primary);padding:1px 5px}
+  .day-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fbfaff;border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:8px;cursor:pointer}
+  .day-item:last-child{margin-bottom:0}
+  .day-dot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--primary)}
+  .day-dot.c-reu{background:#7d6bc4}.day-dot.c-disc{background:#3f88cc}.day-dot.c-anun{background:#3a9d72}.day-dot.c-terr{background:#d38236}.day-dot.c-limp{background:#2aa1b3}.day-dot.c-cal{background:var(--primary)}
+  .day-dot.t-asamblea{background:var(--warn)}.day-dot.t-evento{background:var(--ok)}.day-dot.t-otro{background:#9a90b3}
+  .day-tx{flex:1;display:flex;flex-direction:column;gap:1px;font-size:14px}
+  .board-date{font-weight:700;color:var(--primary-d);font-size:14px;margin-bottom:8px}
+  .perm-row{display:flex;flex-wrap:wrap;gap:10px}
+  .perm-chk{display:inline-flex;align-items:center;gap:7px;background:#f7f5fc;border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:14px;cursor:pointer}
+  .perm-chk.fixed{opacity:.7}
+  .perm-chk input{width:17px;height:17px}
+  .dt-meta{font-size:13px;color:var(--muted);margin-bottom:12px}
+  .dt-row{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .dt-row:last-child{border-bottom:0}
+  .dt-k{min-width:120px;font-weight:650;color:#4a4358;font-size:13px}
+  .dt-v{flex:1;font-size:14px;white-space:pre-wrap}
+
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:#fff;padding:11px 18px;border-radius:10px;font-size:14px;font-weight:500;
+    box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:.25s;z-index:80}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ---------- RESPONSIVE ---------- */
+  @media(max-width:560px){
+    .topbar .crumb{font-size:15px}
+    .bn-item{font-size:10px}
+    .bn-item .bn-ico{font-size:19px}
+    .grid2{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<section id="login">
+  <div class="login-card">
+    <div class="brandmark">
+      <div class="dot">CA</div>
+      <div><h1>Comunicación y Anuncios</h1><p>Acceso con privilegio de servicio</p></div>
+    </div>
+    <div class="field">
+      <label for="li-user">Usuario</label>
+      <input id="li-user" autocomplete="username" placeholder="Tu usuario">
+    </div>
+    <div class="field" id="pass-field">
+      <label for="li-pass">Contraseña</label>
+      <input id="li-pass" type="password" autocomplete="current-password" placeholder="Tu contraseña">
+    </div>
+    <div class="err" id="li-err"></div>
+    <button class="btn full" id="li-btn">Entrar</button>
+    <button class="btn ghost full" id="installBtn" style="display:none;margin-top:10px">Instalar app</button>
+    <div class="hint" id="li-hint"></div>
+  </div>
+</section>
+
+<!-- ===================== APP ===================== -->
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="dot">CA</div>
+      <div class="crumb" id="crumb">Inicio</div>
+    </div>
+    <div class="spacer"></div>
+    <span class="pill" id="whoRole"></span>
+    <button class="exit" id="logout" title="Salir"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button>
+  </header>
+
+  <main class="main">
+    <div class="subtabs" id="subtabs" style="display:none"></div>
+    <div id="reminders" style="display:none"></div>
+    <div class="panel" id="panel"></div>
+  </main>
+
+  <nav class="bottomnav" id="bottomnav"></nav>
+</div>
+
+<!-- ===================== MODAL ===================== -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-head"><h3 id="m-title">Título</h3><button class="x" id="m-close">×</button></div>
+    <div class="modal-body" id="m-body"></div>
+    <div class="modal-foot">
+      <button class="btn ghost" id="m-cancel">Cancelar</button>
+      <button class="btn accent" id="m-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ===================== MAPA (pantalla grande) ===================== -->
+<div class="overlay" id="mapov">
+  <div class="modal" style="max-width:960px;width:96%;height:88vh;display:flex;flex-direction:column">
+    <div class="modal-head"><h3>Mapa de territorios</h3><button class="x" id="map-close">×</button></div>
+    <div style="flex:1;min-height:0">
+      <iframe id="map-frame" title="Mapa de territorios" src="" style="width:100%;height:100%;border:0;display:block"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== DÍA (todos los conceptos) ===================== -->
+<div class="overlay" id="dayov">
+  <div class="modal">
+    <div class="modal-head"><h3 id="day-title">Día</h3><button class="x" id="day-close">×</button></div>
+    <div class="modal-body" id="day-body"></div>
+    <div class="modal-foot"><button class="btn accent" id="day-done">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- ===================== DETALLE (desde el calendario) ===================== -->
+<div class="overlay" id="detailov">
+  <div class="modal">
+    <div class="modal-head"><h3 id="dt-title">Detalle</h3><button class="x" id="dt-close">×</button></div>
+    <div class="modal-body" id="dt-body"></div>
+    <div class="modal-foot" id="dt-foot"></div>
+  </div>
+</div>
+
+<!-- ===================== LISTA DE TERRITORIOS ===================== -->
+<div class="overlay" id="terrcat">
+  <div class="modal">
+    <div class="modal-head"><h3 id="tc-h">Lista de territorios</h3><button class="x" id="tc-close">×</button></div>
+    <div class="modal-body">
+      <p class="meta" style="margin-top:0" id="tc-hint">Agrega los territorios de tu mapa. Luego podrás elegirlos al asignar.</p>
+      <div class="field"><label id="tc-label">Agregar territorio (número o nombre)</label>
+        <div style="display:flex;gap:8px">
+          <input id="tc-input" type="text" placeholder="Ej. 12  o  Ameyalco Centro" style="flex:1">
+          <button class="btn accent" id="tc-add">Agregar</button>
+        </div>
+      </div>
+      <div class="field" id="tc-range"><label>O agregar un rango de números</label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input id="tc-from" type="number" placeholder="del" style="width:84px">
+          <input id="tc-to" type="number" placeholder="al" style="width:84px">
+          <button class="btn ghost" id="tc-addrange">Agregar rango</button>
+        </div>
+      </div>
+      <div id="tc-list" class="tc-list"></div>
+    </div>
+    <div class="modal-foot"><button class="btn accent" id="tc-done">Listo</button></div>
+  </div>
+</div>
+
+<!-- ===================== IMPORTAR ===================== -->
+<div class="overlay" id="importov">
+  <div class="modal">
+    <div class="modal-head"><h3>Importar datos</h3><button class="x" id="imp-close">×</button></div>
+    <div class="modal-body">
+      <p class="meta" id="imp-hint" style="margin-top:0"></p>
+      <label class="btn ghost" for="impfile" style="display:inline-flex;margin-bottom:12px">Elegir archivo (CSV, Excel o ODS)</label>
+      <input id="impfile" type="file" accept=".csv,text/csv,.txt,.xlsx,.xls,.ods" class="vis-hidden">
+      <div class="field"><label>O pega aquí los datos (separados por comas)</label>
+        <textarea id="imp-text" rows="6" placeholder="Fecha,Privilegio,Nombre&#10;2026-07-01,Lector,Juan Pérez&#10;2026-07-08,Presidente,Luis Gómez"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" id="imp-cancel">Cancelar</button>
+      <button class="btn accent" id="imp-do">Importar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== CONFIRMACIÓN ===================== -->
+<div class="sheet-ov" id="confirm">
+  <div class="sheet-card">
+    <div class="sheet-h" id="cf-msg">¿Confirmar?</div>
+    <button class="sheet-b del" id="cf-yes">Sí, eliminar</button>
+    <button class="sheet-b cancel" id="cf-no">Cancelar</button>
+  </div>
+</div>
+
+<!-- ===================== HOJA DE ACCIONES (editar/eliminar) ===================== -->
+<div class="sheet-ov" id="sheet">
+  <div class="sheet-card">
+    <div class="sheet-h">Acciones</div>
+    <button class="sheet-b" id="sheet-view">Ver archivo</button>
+    <button class="sheet-b" id="sheet-done">Marcar como hecho</button>
+    <button class="sheet-b" id="sheet-edit">Editar</button>
+    <button class="sheet-b del" id="sheet-del">Eliminar</button>
+    <button class="sheet-b cancel" id="sheet-cancel">Cancelar</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   ALMACENAMIENTO
+   ============================================================ */
+const STORE_KEY = "cca_data_v1";
+const ROLES = ["Publicador","Precursor","Siervo ministerial","Anciano"];
+
+function defaultTerr(){ return Array.from({length:32},(_,i)=>String(i+1)); }
+function seed(){
+  return {
+    users:[
+      {id:uid(), username:"anciano", password:"1234", name:"Administrador", role:"Anciano"},
+      {id:uid(), username:"publicador", password:"1234", name:"Publicador", role:"Publicador"}
+    ],
+    sections:{
+      reu_mie:[], reu_dom:[], reu_limp:[],
+      disc_local:[], disc_ext:[], calendario:[], anuncios:[], territorios:[]
+    },
+    territoriosCatalog: defaultTerr(),
+    discursantesCatalog: [],
+    permsConfig: {
+      reuniones:   ["Siervo ministerial"],
+      discursos:   [],
+      anuncios:    ["Siervo ministerial"],
+      territorios: ["Siervo ministerial"]
+    },
+    terrSeeded: true
+  };
+}
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(!raw){ const d=seed(); save(d); return d; }
+    const d = JSON.parse(raw);
+    if(!d.sections) d.sections = seed().sections;
+    if(!d.users || !d.users.length) d.users = seed().users;
+    // migrar "otros" (tareas) -> "territorios" si aplica
+    if(d.sections.otros && !d.sections.territorios){ d.sections.territorios = d.sections.otros; }
+    delete d.sections.otros;
+    // migrar discursos (único) -> disc_local
+    if(d.sections.discursos && !d.sections.disc_local){
+      d.sections.disc_local = d.sections.discursos.map(r=>({...r, discursante: r.discursante||r.orador||""}));
+    }
+    delete d.sections.discursos;
+    if(!Array.isArray(d.territoriosCatalog)) d.territoriosCatalog = [];
+    if(!Array.isArray(d.discursantesCatalog)) d.discursantesCatalog = [];
+    if(!d.permsConfig || typeof d.permsConfig!=="object") d.permsConfig = seed().permsConfig;
+    for(const k of ["reuniones","discursos","anuncios","territorios"]) if(!Array.isArray(d.permsConfig[k])) d.permsConfig[k]=[];
+    if(!d.terrSeeded && d.territoriosCatalog.length===0){ d.territoriosCatalog = defaultTerr(); }
+    d.terrSeeded = true;
+    // cuenta de prueba "publicador" (para revisar la vista sin privilegios)
+    if(!d.users.some(u=>u.username.toLowerCase()==="publicador")){
+      d.users.push({id:uid(), username:"publicador", password:"1234", name:"Publicador", role:"Publicador"});
+    }
+    // asegurar todas las secciones
+    for(const k of Object.keys(seed().sections)) if(!d.sections[k]) d.sections[k]=[];
+    return d;
+  }catch(e){ const d=seed(); save(d); return d; }
+}
+function save(d){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(d)); }catch(e){ toast("No se pudo guardar (almacenamiento)"); } }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+let DATA = loadData();
+let USER = null;          // usuario en sesión
+let CURRENT = "estudiantiles";
+
+/* ============================================================
+   PERMISOS  (función pura, comprobable)
+   ============================================================ */
+function perms(role){
+  const elder = role === "Anciano";
+  const feeder = role === "Siervo ministerial" || role === "Anciano";
+  return {
+    canReport: true,
+    canFeed:   feeder,
+    canEdit:   elder,
+    canDelete: elder
+  };
+}
+// A qué "grupo de permiso" pertenece cada sección
+function assignGroup(section){
+  if(section && section.indexOf("reu_")===0) return "reuniones";
+  if(section && section.indexOf("disc_")===0) return "discursos";
+  if(section==="territorios") return "territorios";
+  if(section==="anuncios") return "anuncios";
+  if(section==="calendario") return "calendario";
+  return section; // usuarios, permisos
+}
+// ¿Este rol puede ASIGNAR (crear/editar/eliminar) en este grupo/menú?
+function canAssignGroup(group, role){
+  if(role==="Anciano") return true;            // el anciano siempre puede (y configura)
+  const a = DATA && DATA.permsConfig && DATA.permsConfig[group];
+  return Array.isArray(a) && a.includes(role);
+}
+function canAssign(section, role){ return canAssignGroup(assignGroup(section), role); }
+// ¿Puede AGREGAR en esta sección? (mismo criterio que asignar)
+function canAdd(section, role){
+  if(section === "usuarios" || section === "permisos") return role === "Anciano";
+  return canAssign(section, role);
+}
+
+/* ============================================================
+   CONFIGURACIÓN DE SECCIONES
+   ============================================================ */
+const SELECT = {
+  puesto:["Lector","Acomodador","Presidente","VYM","Audio y video"],
+  salaAsig:["Sala A","Sala B"],
+  estadoTarea:["Pendiente","En proceso","Completada"],
+  estadoTerr:["Pendiente","Hecho"],
+  tipoEvento:["Asamblea","Limpieza y hospitalidad","Visita SC","Reunión especial","Otros"],
+  recordatorio:["1 mes antes","2 semanas antes","1 semana antes","3 días antes","1 día antes","El mismo día (7:00 a.m.)","1 hora antes","Diario (7:00 a.m.)"]
+};
+
+const SECTIONS = {
+  reu_mie:{
+    title:"Reunión de miércoles", group:"Reuniones",
+    desc:"Lector, acomodador y presidente del miércoles.",
+    fields:[
+      {k:"fecha",l:"Fecha",t:"date",req:true},
+      {k:"puesto",l:"Privilegio",t:"select",opts:SELECT.puesto,req:true},
+      {k:"persona",l:"Nombre",t:"text",req:true},
+      {k:"sala",l:"Sala",t:"select",opts:SELECT.salaAsig},
+      {k:"asignacion",l:"Asignación",t:"text"},
+      {k:"notas",l:"Notas",t:"textarea"},
+      {k:"adjunto",l:"Adjuntar archivo",t:"file"}
+    ],
+    cols:["fecha","puesto","sala","persona"]
+  },
+  reu_dom:{
+    title:"Reunión de domingo", group:"Reuniones",
+    desc:"Lector, acomodador y presidente del domingo.",
+    fields:[
+      {k:"fecha",l:"Fecha",t:"date",req:true},
+      {k:"puesto",l:"Privilegio",t:"select",opts:SELECT.puesto,req:true},
+      {k:"persona",l:"Nombre",t:"text",req:true},
+      {k:"notas",l:"Notas",t:"textarea"},
+      {k:"adjunto",l:"Adjuntar archivo",t:"file"}
+    ],
+    cols:["fecha","puesto","persona"]
+  },
+  reu_limp:{
+    title:"Limpieza", group:"Reuniones", detailView:true, maxDays:2,
+    desc:"Asigna la limpieza a un grupo en dos días.",
+    fields:[
+      {k:"grupo",l:"Grupo",t:"select",opts:["Grupo 1","Grupo 2","Grupo 3","Grupo 4","Grupo 5"],req:true},
+      {k:"fecha",l:"Primer día",t:"date",req:true},
+      {k:"fecha2",l:"Segundo día (opcional)",t:"date"},
+      {k:"notas",l:"Notas",t:"textarea"}
+    ],
+    cols:["grupo","fecha","fecha2"]
+  },
+  disc_local:{
+    title:"Discurso local", group:"Discursos", detailView:true, autopres:true,
+    desc:"Discursos en la congregación. El presidente se toma de la reunión del domingo.",
+    fields:[
+      {k:"fecha",l:"Fecha",t:"date",req:true},
+      {k:"discursante",l:"Discursante",t:"text",req:true},
+      {k:"congregacion",l:"Congregación",t:"text"},
+      {k:"cancion",l:"Canción",t:"text"},
+      {k:"presidente",l:"Presidente (del domingo)",t:"auto",ph:"Se toma del domingo"},
+      {k:"notas",l:"Notas",t:"textarea"},
+      {k:"adjunto",l:"Adjuntar archivo",t:"file"}
+    ],
+    cols:["fecha","discursante","presidente"]
+  },
+  disc_ext:{
+    title:"Discurso externo", group:"Discursos", detailView:true, noCal:true, remind:true, discCat:true,
+    autoRemind:["1 mes antes","2 semanas antes","1 semana antes","1 día antes","El mismo día (7:00 a.m.)","1 hora antes"],
+    desc:"Discursos fuera de la congregación (no aparecen en el calendario). Recordatorios automáticos.",
+    fields:[
+      {k:"discursante",l:"Discursante",t:"select",dyn:"disc",req:true},
+      {k:"fecha",l:"Fecha",t:"date",req:true},
+      {k:"hora",l:"Hora",t:"time"},
+      {k:"congregacion",l:"Congregación",t:"text",req:true},
+      {k:"bosquejo",l:"Bosquejo",t:"text"},
+      {k:"direccion",l:"Dirección",t:"textarea"},
+      {k:"_buscar",l:"¿No sabes la dirección?",t:"link",href:"https://hub.jw.org/meetings/es?q=%7B%22meetingType%22:%22meetings%22,%22location%22:%22%22%7D",text:"Busca la congregación aquí"},
+      {k:"mapsurl",l:"Enlace de Google Maps",t:"maps"},
+      {k:"contacto",l:"Contacto (nombre)",t:"text"},
+      {k:"telefono",l:"Teléfono",t:"tel"},
+      {k:"adjunto",l:"Adjuntar archivo",t:"file"}
+    ],
+    cols:["fecha","discursante","congregacion"]
+  },
+  calendario:{
+    title:"Calendario", group:null,
+    desc:"Eventos con fecha y recordatorio.",
+    remind:true,
+    fields:[
+      {k:"fecha",l:"Fecha",t:"date",req:true},
+      {k:"hora",l:"Hora",t:"time"},
+      {k:"titulo",l:"Título",t:"text",req:true},
+      {k:"tipo",l:"Tipo",t:"select",opts:SELECT.tipoEvento,req:true},
+      {k:"recordatorio",l:"Recordatorio (puedes elegir varios)",t:"multi",opts:SELECT.recordatorio},
+      {k:"descripcion",l:"Descripción",t:"textarea"},
+      {k:"adjunto",l:"Adjuntar archivo",t:"file"}
+    ],
+    cols:["fecha","hora","titulo","tipo"]
+  },
+  anuncios:{
+    title:"Anuncios", group:null,
+    desc:"Escribe el anuncio o adjunta un PDF. Puedes agregar un recordatorio.",
+    remind:true,
+    fields:[
+      {k:"fecha",l:"Fecha",t:"date",req:true},
+      {k:"titulo",l:"Título",t:"text",req:true},
+      {k:"contenido",l:"Escribir el anuncio",t:"textarea"},
+      {k:"archivo",l:"Adjuntar archivo",t:"file"},
+      {k:"recordatorio",l:"Recordatorio (puedes elegir varios)",t:"multi",opts:SELECT.recordatorio}
+    ],
+    cols:["fecha","titulo","recordatorio"]
+  },
+  territorios:{
+    title:"Servicio", group:null,
+    desc:"Programa territorios: elige territorio y día, con capitán y punto de salida.",
+    map:true,
+    fields:[
+      {k:"territorio",l:"Territorio",t:"select",dyn:"terr",req:true},
+      {k:"fecha",l:"Día programado",t:"date",req:true},
+      {k:"capitan",l:"Capitán",t:"text"},
+      {k:"salida",l:"Salida de...",t:"text"},
+      {k:"notas",l:"Notas",t:"textarea"},
+      {k:"adjunto",l:"Adjuntar archivo",t:"file"}
+    ],
+    cols:["territorio","capitan","fecha"]
+  }
+};
+
+/* Íconos (SVG en línea, sin emojis para máxima compatibilidad) */
+const SV='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">';
+const SVGI = {
+  reuniones: SV+'<circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 5.5a3.2 3.2 0 0 1 0 6"/><path d="M17.5 20a6.5 6.5 0 0 0-3-5.2"/></svg>',
+  discursos: SV+'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/><path d="M8.5 21h7"/></svg>',
+  calendario:SV+'<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18"/><path d="M8 3v4M16 3v4"/></svg>',
+  anuncios:  SV+'<path d="M4 10v4a1 1 0 0 0 1 1h2l5 4V5L7 9H5a1 1 0 0 0-1 1z"/><path d="M16 9a4 4 0 0 1 0 6"/></svg>',
+  territorios:SV+'<path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/></svg>',
+  usuarios:  SV+'<circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>'
+};
+
+/* Navegación inferior */
+const TOPNAV = [
+  {id:"reuniones", label:"Reuniones", full:"Reuniones", ico:SVGI.reuniones, subs:[
+    {id:"reu_mie",label:"Miércoles"},
+    {id:"reu_dom",label:"Domingo"},
+    {id:"reu_limp",label:"Limpieza"}
+  ]},
+  {id:"discursos", label:"Discursos", full:"Discursos", ico:SVGI.discursos, hideNoAssign:true, subs:[
+    {id:"disc_local",label:"Local"},
+    {id:"disc_ext",label:"Externo"}
+  ]},
+  {id:"calendario", label:"Calend.", full:"Calendario", ico:SVGI.calendario, subs:[
+    {id:"calendario",label:"Calendario"}
+  ]},
+  {id:"anuncios", label:"Anuncios", full:"Anuncios", ico:SVGI.anuncios, subs:[
+    {id:"anuncios",label:"Anuncios"}
+  ]},
+  {id:"territorios", label:"Servicio", full:"Servicio", ico:SVGI.territorios, subs:[
+    {id:"territorios",label:"Servicio"}
+  ]}
+];
+const USERS_TOP = {id:"usuarios", label:"Usuarios", full:"Administración", ico:SVGI.usuarios, subs:[{id:"usuarios",label:"Usuarios"},{id:"permisos",label:"Permisos"}]};
+const CHILD_TAB = {};   // (sin sub-toggle)
+let TOPITEMS = [];
+
+/* ============================================================
+   UTILIDADES UI
+   ============================================================ */
+const $ = s=>document.querySelector(s);
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),2200); }
+function fmtDate(s){ if(!s) return "—"; const [y,m,d]=s.split("-"); if(!d) return s; return `${d}/${m}/${y}`; }
+function badgeFor(key,val){
+  if(val==null||val==="") return '<span class="badge b-grey">—</span>';
+  const map={
+    "En existencia":"b-green","Resuelto":"b-green","Completada":"b-green","Hecho":"b-green",
+    "Solicitado":"b-amber","En proceso":"b-amber","Media":"b-amber",
+    "Por comprar":"b-red","Abierto":"b-red","Alta":"b-red","Pendiente":"b-red",
+    "Baja":"b-grey"
+  };
+  return `<span class="badge ${map[val]||"b-blue"}">${esc(val)}</span>`;
+}
+const BADGE_FIELDS = new Set(["estado","prioridad","tipo"]);
+const TERR_MID = "1RBBNN9qO_P3EvbnErFAtkWcZxqhn8TY";
+
+/* ============================================================
+   LOGIN
+   ============================================================ */
+function refreshLoginHint(){
+  const pf=$("#pass-field"); if(pf) pf.style.display = REQUIRE_PASSWORD ? "block" : "none";
+  const onlyDefault = DATA.users.length===1 && DATA.users[0].username==="anciano";
+  if(!REQUIRE_PASSWORD){
+    $("#li-hint").innerHTML = "Acceso sin contraseña (temporal) · escribe tu usuario.<br>Para probar: <b>anciano</b> (todo) o <b>publicador</b> (vista sin privilegios).";
+    return;
+  }
+  $("#li-hint").innerHTML = (onlyDefault && DATA.users[0].password==="1234")
+    ? "Primer ingreso · usuario <b>anciano</b> · contraseña <b>1234</b><br>Cámbialo y crea los demás usuarios en <b>Usuarios</b>."
+    : "Ingresa con el usuario que te asignó un anciano.";
+}
+/* Acceso con contraseña: desactivado por ahora.
+   Para volver a activarlo, cambia esta línea a: const REQUIRE_PASSWORD = true; */
+const REQUIRE_PASSWORD = false;
+
+function doLogin(){
+  const u = $("#li-user").value.trim().toLowerCase();
+  const p = $("#li-pass").value;
+  if(!u){ $("#li-err").textContent="Escribe tu usuario."; return; }
+  const found = DATA.users.find(x=>
+    x.username.toLowerCase()===u && (!REQUIRE_PASSWORD || x.password===p)
+  );
+  if(!found){ $("#li-err").textContent = REQUIRE_PASSWORD ? "Usuario o contraseña incorrectos." : "Ese usuario no existe."; return; }
+  USER = found; $("#li-err").textContent="";
+  $("#login").style.display="none";
+  $("#app").style.display="flex";
+  $("#whoRole").textContent = found.role;
+  buildBottomNav();
+  goTop("reuniones");
+  const due = activeReminders().filter(x=>x.status==="Hoy"||x.status==="Vencido").length;
+  if(due) toast(`Tienes ${due} recordatorio(s) para hoy o vencidos`);
+}
+function doLogout(){
+  USER=null; $("#app").style.display="none"; $("#login").style.display="grid";
+  $("#li-user").value=""; $("#li-pass").value=""; refreshLoginHint();
+}
+
+/* ============================================================
+   NAVEGACIÓN INFERIOR + SUB-PESTAÑAS
+   ============================================================ */
+function buildBottomNav(){
+  TOPITEMS = TOPNAV.filter(t=> !(t.hideNoAssign && !canAssignGroup(t.id, USER.role)) );
+  if(USER.role==="Anciano") TOPITEMS.push(USERS_TOP);
+  const nav = $("#bottomnav");
+  nav.innerHTML = TOPITEMS.map(t=>
+    `<button class="bn-item" data-top="${t.id}" onclick="goTop('${t.id}')">
+       <span class="bn-ico">${t.ico}</span><span class="bn-lbl">${esc(t.label)}</span>
+     </button>`).join("");
+}
+function topFor(sectionId){
+  return TOPITEMS.find(t=>t.subs.some(s=>s.id===sectionId) || (t.extra&&t.extra.includes(sectionId)));
+}
+function goTop(topId){
+  const t = TOPITEMS.find(x=>x.id===topId);
+  if(t) go(t.subs[0].id, topId);
+}
+function go(sectionId, topId){
+  const t = topId ? TOPITEMS.find(x=>x.id===topId) : topFor(sectionId);
+  if(!t) return;
+  CURRENT = sectionId;
+  const activeSub = CHILD_TAB[sectionId] || sectionId;
+  // resaltar ítem inferior
+  document.querySelectorAll(".bn-item").forEach(b=>b.classList.toggle("active", b.dataset.top===t.id));
+  // título en barra superior
+  $("#crumb").textContent = t.full;
+  // Reuniones en modo "tablero" para quien no puede asignar ahí
+  if(t.id==="reuniones" && !canAssignGroup("reuniones", USER.role)){
+    $("#subtabs").style.display="none"; $("#subtabs").innerHTML="";
+    renderReunionesBoard();
+    renderReminders(); updateNavBadges(); $(".main").scrollTop = 0;
+    return;
+  }
+  // sub-pestañas (solo si el grupo tiene más de una)
+  const sub = $("#subtabs");
+  if(t.subs.length>1){
+    sub.style.display="flex";
+    sub.innerHTML = t.subs.map(s=>
+      `<button class="subtab ${s.id===activeSub?"active":""}" onclick="go('${s.id}','${t.id}')">${esc(s.label)}</button>`
+    ).join("");
+  }else{ sub.style.display="none"; sub.innerHTML=""; }
+  // contenido
+  if(sectionId==="usuarios") renderUsers();
+  else if(sectionId==="permisos") renderPerms();
+  else if(sectionId==="calendario") renderCalendar();
+  else renderSection(sectionId);
+  renderReminders();
+  updateNavBadges();
+  $(".main").scrollTop = 0;
+}
+
+/* ============================================================
+   RENDER SECCIÓN (tabla genérica)
+   ============================================================ */
+function renderSection(id){
+  const cfg=SECTIONS[id];
+  const rows=DATA.sections[id]||[];
+  const showAdd = canAdd(id, USER.role);
+  const p = perms(USER.role);
+
+  let head = `<div class="panel-head">
+      <div><h2>${esc(cfg.title)}</h2><p>${esc(cfg.desc)}</p></div>
+      ${actionBtns(id,"Asignar")}
+    </div>`;
+
+  let catBlock = "";
+  if(cfg.discCat && canAdd(id,USER.role)){
+    catBlock = `<div class="hd-actions" style="margin:-4px 0 16px"><button class="btn ghost" onclick="openDiscCatalog()">Lista de discursantes</button></div>`;
+  }
+  let mapBlock = "";
+  if(cfg.map){
+    mapBlock = `
+      <div class="card" style="padding:0;overflow:hidden;margin-bottom:8px">
+        <iframe title="Mapa de territorios" src="https://www.google.com/maps/d/embed?mid=${TERR_MID}" style="width:100%;height:300px;border:0;display:block"></iframe>
+      </div>
+      <p class="meta" style="margin:0 0 10px">Si el mapa se ve en blanco: en tu Google My Maps ponlo como "cualquiera con el enlace puede ver". En la vista previa de Claude no carga; en la app instalada (GitHub Pages) sí.</p>
+      <div class="hd-actions" style="margin-bottom:16px">
+        <button class="btn ghost" onclick="openMapModal()">Ver mapa en grande</button>
+        ${canAdd(id,USER.role)?`<button class="btn ghost" onclick="openTerrCatalog()">Lista de territorios</button>`:""}
+        <a class="btn ghost" href="https://www.google.com/maps/d/viewer?mid=${TERR_MID}" target="_blank" rel="noopener">Abrir en Google</a>
+      </div>`;
+  }
+
+  if(!rows.length){
+    $("#panel").innerHTML = head + mapBlock + catBlock + `<div class="card empty">
+      <div class="big"><svg viewBox="0 0 24 24" width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.45"><path d="M3 13l3-8h12l3 8"/><path d="M3 13v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/><path d="M3 13h5l1 2h6l1-2h5"/></svg></div>
+      <p><b>Sin registros todavía</b></p>
+      <p>${showAdd?"Usa el botón para crear el primero.":"Aún no hay información cargada."}</p>
+    </div>`;
+    return;
+  }
+
+  const sorted=[...rows];
+  if(cfg.fields.some(f=>f.k==="fecha")) sorted.sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||""));
+
+  const ths = cfg.cols.map(c=>{
+    const f=cfg.fields.find(x=>x.k===c); return `<th>${esc(f?f.l:c)}</th>`;
+  }).join("");
+  const canAct = canAssign(id, USER.role);
+  const detailView = !!cfg.detailView;
+  const hasAnyClick = detailView || canAct || sorted.some(r=>hasAttach(id,r));
+  const actionsCol = hasAnyClick?`<th aria-label="acciones"></th>`:"";
+
+  const body = sorted.map(r=>{
+    const st = cfg.remind ? reminderStatus(r) : null;
+    const att = hasAttach(id,r);
+    const clickable = detailView || canAct || att;
+    const tds = cfg.cols.map(c=>{
+      const fdef = cfg.fields.find(x=>x.k===c);
+      if(fdef && fdef.t==="file"){
+        return `<td>${ (r[c]&&(r[c].id||r[c].data))
+          ? `<button class="btn ghost sm" onclick="event.stopPropagation();openAttach('${id}','${r.id}','${c}')">Ver</button>`
+          : '<span class="badge b-grey">—</span>' }</td>`;
+      }
+      if(c==="fecha"){
+        const cls = st&&st.status==="Hoy" ? "due-today" : (st&&st.status==="Vencido" ? "due-over" : "cell-strong");
+        return `<td class="${cls}">${att?CLIP:""}${fmtDate(r[c])}</td>`;
+      }
+      if(BADGE_FIELDS.has(c)) return `<td>${badgeFor(c,r[c])}</td>`;
+      if(fdef && fdef.t==="date") return `<td>${r[c]?fmtDate(r[c]):"—"}</td>`;
+      const strong = (c===cfg.cols[0]);
+      const raw = Array.isArray(r[c]) ? r[c].join(", ") : r[c];
+      return `<td class="${strong?"cell-strong":""}">${esc(raw||"—")}</td>`;
+    }).join("");
+    const onclick = detailView ? `openDetail('${id}','${r.id}')` : `openRowActions('${id}','${r.id}')`;
+    return `<tr class="${clickable?'rowclick':''}" ${clickable?`onclick="${onclick}"`:''}>${tds}${hasAnyClick?`<td class="chev">${clickable?CHEVR:""}</td>`:''}</tr>`;
+  }).join("");
+
+  $("#panel").innerHTML = head + mapBlock + catBlock + `<div class="card table-wrap">
+    <table><thead><tr>${ths}${actionsCol}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+const CHEVR='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
+const CLIP='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:5px;color:var(--primary)"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.6 1.6 0 0 1-2.3-2.3l7.8-7.8"/></svg>';
+function actionBtns(id, addLabel){
+  if(!canAdd(id, USER.role)) return "";
+  return `<div class="hd-actions">
+    <button class="btn ghost" onclick="openImport('${id}')">Importar</button>
+    <button class="btn accent" onclick="openForm('${id}')">+ ${esc(addLabel||"Agregar")}</button>
+  </div>`;
+}
+function readImportFile(file, section){
+  if(!file) return;
+  const name=(file.name||"").toLowerCase();
+  const isSheet=/\.(xlsx|xls|ods)$/.test(name) || /sheet|excel|opendocument/.test(file.type||"");
+  const r=new FileReader();
+  if(isSheet){
+    if(typeof XLSX==="undefined"){ toast("Para Excel/ODS hace falta conexión a internet"); return; }
+    r.onload=()=>{ try{
+        const wb=XLSX.read(new Uint8Array(r.result),{type:"array"});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const rows=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:false,raw:false});
+        importRows(section, rows.map(rw=>(rw||[]).map(c=>c==null?"":String(c))));
+      }catch(e){ toast("No se pudo leer la hoja de cálculo"); } };
+    r.onerror=()=>toast("No se pudo leer el archivo"); r.readAsArrayBuffer(file);
+  }else{
+    r.onload=()=>importRows(section, parseCSV(r.result));
+    r.onerror=()=>toast("No se pudo leer el archivo"); r.readAsText(file);
+  }
+}
+let importSection=null;
+function openImport(section){
+  if(!canAdd(section,USER.role)){ toast("Sin permiso"); return; }
+  importSection=section;
+  const cfg=SECTIONS[section];
+  const cols=cfg.fields.filter(f=>f.t!=="file").map(f=>f.l);
+  $("#imp-hint").textContent="Columnas (primera fila): "+cols.join(", ");
+  $("#imp-text").value=""; $("#impfile").value="";
+  $("#importov").classList.add("show");
+}
+function closeImport(){ $("#importov").classList.remove("show"); importSection=null; }
+
+/* ============================================================
+   IMPORTAR DOCUMENTO (CSV / Excel / ODS) → aplica la información
+   ============================================================ */
+function norm(s){ return String(s||"").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
+function normDate(v){
+  v=(v||"").trim(); let m;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  if((m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  return v;
+}
+function parseCSV(text){
+  text=String(text).replace(/^\uFEFF/,"").replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+  const rows=[]; let field="",row=[],inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){ field+='"'; i++; } else inQ=false; }
+      else field+=c;
+    }else{
+      if(c==='"') inQ=true;
+      else if(c===',' ){ row.push(field); field=""; }
+      else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=""; }
+      else field+=c;
+    }
+  }
+  if(field.length||row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r=>r.some(x=>String(x).trim()!==""));
+}
+function importCSV(section, text){ importRows(section, parseCSV(text)); }
+function importRows(section, rows){
+  const cfg=SECTIONS[section];
+  rows=(rows||[]).filter(r=>r&&r.some(x=>String(x).trim()!==""));
+  if(rows.length<2){ toast("El archivo no tiene filas de datos"); return; }
+  const headers=rows[0].map(norm);
+  const fieldByCol=headers.map(h=> cfg.fields.find(f=> f.t!=="file" && (norm(f.k)===h || norm(f.l)===h)) || null );
+  if(!fieldByCol.some(Boolean)){ toast("Encabezados no reconocidos (usa la plantilla)"); return; }
+  let n=0, skipped=0;
+  for(let r=1;r<rows.length;r++){
+    const obj={}; let any=false;
+    rows[r].forEach((val,ci)=>{ const f=fieldByCol[ci]; if(!f) return; let v=String(val==null?"":val).trim();
+      if(f.t==="date") v=normDate(v);
+      if(f.t==="multi"){ obj[f.k]= v?v.split(/[;|]/).map(x=>x.trim()).filter(Boolean):[]; if(v) any=true; return; }
+      if(v) any=true; obj[f.k]=v; });
+    if(!any) continue;
+    const missing=cfg.fields.find(f=>f.req && f.t!=="file" && f.t!=="multi" && !obj[f.k]);
+    if(missing){ skipped++; continue; }
+    obj.id=uid(); obj.createdBy=USER.id; obj.createdByName=USER.name||USER.username; obj.createdAt=Date.now();
+    DATA.sections[section].push(obj); n++;
+  }
+  save(DATA); go(CURRENT);
+  toast(n?`${n} registro(s) importado(s)${skipped?` · ${skipped} incompleta(s) omitida(s)`:""}`:"No se importó nada (revisa encabezados y campos obligatorios)");
+}
+
+/* ============================================================
+   FORMULARIO (crear / editar)
+   ============================================================ */
+let formCtx=null;
+function fieldHTML(f,val){
+  if(f.t==="multi"){
+    const vals=Array.isArray(val)?val:(val?[val]:[]);
+    const all=f.opts.length>0 && f.opts.every(o=>vals.includes(o));
+    return `<div class="checks" id="f-${f.k}">
+      <label class="chk chk-all"><input type="checkbox" ${all?"checked":""} onchange="toggleAllChecks(this)"> <span><b>Seleccionar todos</b></span></label>
+      ${f.opts.map(o=>`<label class="chk"><input type="checkbox" class="opt-chk" value="${esc(o)}" ${vals.includes(o)?"checked":""}> <span>${esc(o)}</span></label>`).join("")}
+    </div>`;
+  }
+  if(f.t==="file"){
+    const has = val && val.name;
+    return `<label class="btn ghost" for="f-${f.k}" style="display:inline-flex">Elegir archivo…</label>
+      <input id="f-${f.k}" type="file" accept="image/*,video/*,application/pdf" class="vis-hidden"
+        onchange="var n=document.getElementById('f-${f.k}-name');n.textContent=this.files&&this.files[0]?('Adjunto: '+this.files[0].name):'Imagen, video o PDF (hasta 25 MB)'">
+      <div class="meta" id="f-${f.k}-name">${has?`Adjunto: ${esc(val.name)} · elige otro para reemplazar`:`Imagen, video o PDF (hasta 25 MB)`}</div>`;
+  }
+  const v=val==null?"":val;
+  if(f.t==="link") return `<a href="${esc(f.href)}" target="_blank" rel="noopener" class="btn ghost" style="display:inline-flex">${esc(f.text||"Abrir enlace")}</a>`;
+  if(f.t==="auto") return `<input id="f-${f.k}" type="text" value="${esc(v)}" readonly placeholder="${esc(f.ph||"Automático")}" style="background:#f3f1f8">`;
+  if(f.t==="maps") return `<input id="f-${f.k}" type="url" value="${esc(v)}" placeholder="Pega el enlace de Google Maps (https://...)">`;
+  if(f.t==="textarea") return `<textarea id="f-${f.k}" rows="3" placeholder="${esc(f.l)}">${esc(v)}</textarea>`;
+  if(f.t==="select"){
+    let source = f.dyn==="terr" ? (DATA.territoriosCatalog||[]) : f.dyn==="disc" ? (DATA.discursantesCatalog||[]) : (f.opts||[]);
+    if(f.dyn==="terr" && !source.length){
+      return `<select id="f-${f.k}"><option value="">— Agrega territorios en "Lista de territorios" —</option></select>`;
+    }
+    if(f.dyn==="disc" && !source.length){
+      return `<select id="f-${f.k}"><option value="">— Agrega discursantes en "Lista de discursantes" —</option></select>`;
+    }
+    if(v && !source.includes(v)) source=[v,...source];
+    const opts=['<option value="">— Seleccionar —</option>'].concat(source.map(o=>`<option ${o===v?"selected":""}>${esc(o)}</option>`)).join("");
+    return `<select id="f-${f.k}">${opts}</select>`;
+  }
+  return `<input id="f-${f.k}" type="${f.t}" value="${esc(v)}" placeholder="${esc(f.l)}">`;
+}
+function openForm(section,recId){
+  const cfg=SECTIONS[section];
+  // verificación de permiso (defensa)
+  if(!canAssign(section,USER.role)){ toast("No tienes permiso para asignar aquí."); return; }
+
+  const rec = recId ? DATA.sections[section].find(x=>x.id===recId) : {};
+  formCtx={section,recId};
+  $("#m-title").textContent = (recId?"Editar · ":"Nuevo · ")+cfg.title;
+  $("#m-body").innerHTML = cfg.fields.map(f=>
+    `<div class="field"><label>${esc(f.l)}${f.req?" *":""}</label>${fieldHTML(f,rec[f.k])}</div>`
+  ).join("");
+  $("#m-save").textContent = recId?"Guardar cambios":"Guardar";
+  $("#overlay").classList.add("show");
+  if(cfg.autopres){
+    const upd=()=>{ const pf=$("#f-presidente"), df=$("#f-fecha"); if(pf&&df){ const nom=presidenteForDate(df.value); pf.value=nom; pf.placeholder=nom?"":"Sin presidente ese domingo"; } };
+    const df=$("#f-fecha"); if(df){ df.addEventListener("change",upd); df.addEventListener("input",upd); }
+    upd();
+  }
+}
+function presidenteForDate(fecha){
+  if(!fecha) return "";
+  const hit=(DATA.sections.reu_dom||[]).find(r=>r.fecha===fecha && r.puesto==="Presidente");
+  return hit ? (hit.persona||"") : "";
+}
+function closeModal(){ $("#overlay").classList.remove("show"); formCtx=null; }
+function toggleAllChecks(cb){ cb.closest(".checks").querySelectorAll("input.opt-chk").forEach(i=>{ i.checked=cb.checked; }); }
+function readFileB64(file){
+  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res({name:file.name,data:r.result}); r.onerror=rej; r.readAsDataURL(file); });
+}
+async function saveForm(){
+  if(!formCtx) return;
+  const {section,recId}=formCtx; const cfg=SECTIONS[section];
+  const existing = recId ? DATA.sections[section].find(x=>x.id===recId) : {};
+  const obj={};
+  for(const f of cfg.fields){
+    if(f.t==="link") continue;
+    if(f.t==="multi"){
+      obj[f.k]=[...$("#f-"+f.k).querySelectorAll("input.opt-chk:checked")].map(i=>i.value);
+      continue;
+    }
+    if(f.t==="file"){
+      const el=$("#f-"+f.k);
+      if(el.files && el.files[0]){
+        const file=el.files[0];
+        const okType=/^(image|video)\//.test(file.type) || file.type==="application/pdf";
+        if(!okType){ toast("Solo imágenes, videos o PDF"); return; }
+        if(file.size>25*1024*1024){ toast("Archivo muy grande (máx. 25 MB)"); return; }
+        const aid=uid();
+        try{ await idbPut(aid, file); }
+        catch(e){ toast("No se pudo guardar el adjunto (¿abriste el archivo en un navegador?)"); return; }
+        obj[f.k]={id:aid, name:file.name, type:file.type};
+      }else if(existing[f.k]){ obj[f.k]=existing[f.k]; }   // conservar el actual
+      continue;
+    }
+    const el=$("#f-"+f.k); let val=el.value.trim();
+    if(f.req && !val){ toast(`Falta: ${f.l}`); el.focus(); return; }
+    obj[f.k]=val;
+  }
+  if(cfg.autoRemind){ obj.recordatorio = cfg.autoRemind.slice(); }
+  if(obj.fecha && obj.fecha2){
+    if(obj.fecha2 === obj.fecha){ toast("El segundo día debe ser distinto al primero"); return; }
+    if(obj.fecha2 < obj.fecha){ toast("El segundo día no puede ser antes del primero"); return; }
+  }
+  if(recId){
+    if(!perms(USER.role).canEdit){ toast("Solo un anciano puede modificar."); return; }
+    const i=DATA.sections[section].findIndex(x=>x.id===recId);
+    DATA.sections[section][i]={...DATA.sections[section][i],...obj};
+    toast("Cambios guardados");
+  }else{
+    if(!canAdd(section,USER.role)){ toast("Sin permiso."); return; }
+    obj.id=uid(); obj.createdBy=USER.id; obj.createdByName=USER.name||USER.username; obj.createdAt=Date.now();
+    DATA.sections[section].push(obj);
+    toast("Registro agregado");
+  }
+  save(DATA); closeModal(); go(CURRENT);
+}
+async function delRecord(section,recId){
+  if(!canAssign(section, USER.role)){ toast("Sin permiso para eliminar aquí."); return; }
+  if(!(await uiConfirm("¿Eliminar este registro? No se puede deshacer."))) return;
+  const k=attachField(section);
+  const rec=(DATA.sections[section]||[]).find(x=>x.id===recId);
+  if(k && rec && rec[k] && rec[k].id) idbDel(rec[k].id);
+  DATA.sections[section]=DATA.sections[section].filter(x=>x.id!==recId);
+  save(DATA); toast("Registro eliminado"); go(CURRENT);
+}
+/* ---- Adjuntos: IndexedDB (capacidad grande para imágenes y videos) ---- */
+let _idb=null;
+function idb(){
+  return new Promise((res,rej)=>{
+    if(_idb) return res(_idb);
+    if(!window.indexedDB){ rej(new Error("sin IndexedDB")); return; }
+    const r=indexedDB.open("cca_files",1);
+    r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains("files")) r.result.createObjectStore("files"); };
+    r.onsuccess=()=>{ _idb=r.result; res(_idb); };
+    r.onerror=()=>rej(r.error);
+  });
+}
+function idbPut(id,blob){ return idb().then(db=>new Promise((res,rej)=>{ const tx=db.transaction("files","readwrite"); tx.objectStore("files").put(blob,id); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); })); }
+function idbGet(id){ return idb().then(db=>new Promise((res,rej)=>{ const tx=db.transaction("files","readonly"); const q=tx.objectStore("files").get(id); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); })); }
+function idbDel(id){ return idb().then(db=>new Promise(res=>{ const tx=db.transaction("files","readwrite"); tx.objectStore("files").delete(id); tx.oncomplete=()=>res(); tx.onerror=()=>res(); })).catch(()=>{}); }
+
+function attachField(section){ const cfg=SECTIONS[section]; if(!cfg) return null; const f=cfg.fields.find(x=>x.t==="file"); return f?f.k:null; }
+function hasAttach(section,rec){ const k=attachField(section); const a=k&&rec&&rec[k]; return !!(a&&(a.id||a.data)); }
+async function openAttach(section, recId, key){
+  const r=(DATA.sections[section]||[]).find(x=>x.id===recId);
+  const a=r&&r[key||attachField(section)]; if(!a){ toast("Sin archivo"); return; }
+  let url;
+  if(a.data){ url=a.data; }                       // formato antiguo (base64)
+  else if(a.id){
+    try{ const blob=await idbGet(a.id); if(!blob){ toast("Archivo no encontrado"); return; } url=URL.createObjectURL(blob); }
+    catch(e){ toast("No se pudo abrir el archivo"); return; }
+  } else { toast("Sin archivo"); return; }
+  const el=document.createElement("a"); el.href=url; el.target="_blank"; el.rel="noopener";
+  document.body.appendChild(el); el.click(); el.remove();
+}
+
+/* ============================================================
+   RECORDATORIOS (adaptado del apartado de tareas de Bilbao)
+   ============================================================ */
+const LEAD = {"1 mes antes":30*864e5,"2 semanas antes":14*864e5,"1 semana antes":7*864e5,"3 días antes":3*864e5,"1 día antes":864e5,"1 hora antes":36e5};
+function eventDate(rec){
+  if(!rec.fecha) return null;
+  const t=(rec.hora&&/^\d{2}:\d{2}/.test(rec.hora))?rec.hora:"09:00";
+  const d=new Date(rec.fecha+"T"+t); return isNaN(d.getTime())?null:d;
+}
+function startOfDay(d){ return new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime(); }
+function reminderStatus(rec){
+  if(!rec.fecha) return null;
+  let opts=rec.recordatorio;
+  if(!opts) return null;
+  if(!Array.isArray(opts)) opts=[opts];
+  opts=opts.filter(Boolean);
+  if(!opts.length) return null;
+  const ev=eventDate(rec); if(!ev) return null;
+  const now=Date.now();
+  const ev0=startOfDay(ev), today0=startOfDay(new Date(now));
+  const days=Math.round((ev0-today0)/864e5);
+  const endEventDay = ev0 + 864e5 - 1;
+  // ¿algún recordatorio elegido ya se activó?
+  let active=false;
+  for(const opt of opts){
+    let trigger;
+    if(/^Diario/.test(opt)) trigger=-8.64e15;                 // todos los días hasta el evento
+    else if(/mismo d[ií]a/i.test(opt)) trigger=ev0 + 7*36e5;  // a las 7:00 a.m. del día
+    else trigger=ev.getTime() - (LEAD[opt]||0);
+    if(now>=trigger){ active=true; break; }
+  }
+  if(!active) return null;
+  if(now > endEventDay) return days>=-7 ? {status:"Vencido",days,ev} : null;
+  if(days===0) return {status:"Hoy",days,ev};
+  if(days<0)   return {status:"Vencido",days,ev};
+  return {status:"Próximo",days,ev};
+}
+function activeReminders(){
+  const out=[];
+  for(const id of Object.keys(SECTIONS)){
+    if(!SECTIONS[id].remind) continue;
+    for(const r of (DATA.sections[id]||[])){
+      const st=reminderStatus(r); if(st) out.push({section:id, rec:r, ...st});
+    }
+  }
+  out.sort((a,b)=>a.ev-b.ev);
+  return out;
+}
+function renderReminders(){
+  const box=$("#reminders"); const list=activeReminders();
+  if(!list.length){ box.style.display="none"; box.innerHTML=""; return; }
+  box.style.display="block";
+  const row=x=>{
+    const cfg=SECTIONS[x.section]; const t=topFor(x.section);
+    const title=x.rec.tema||x.rec.titulo||x.rec.discursante||x.rec.congregacion||x.rec.tarea||x.rec.persona||cfg.title;
+    const tag = x.status==="Hoy"?'<span class="rtag t-hoy">Hoy</span>'
+      : x.status==="Vencido"?'<span class="rtag t-venc">Vencido</span>'
+      : `<span class="rtag t-prox">en ${x.days} día${x.days===1?"":"s"}</span>`;
+    return `<button class="rrow" onclick="goTop('${t?t.id:x.section}')">${tag}<span class="rttl">${esc(title)}</span><span class="rdate">${fmtDate(x.rec.fecha)}</span></button>`;
+  };
+  box.innerHTML=`<div class="rhead"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>Recordatorios (${list.length})</div>`+
+    list.slice(0,5).map(row).join("")+
+    (list.length>5?`<div class="rmore">y ${list.length-5} más…</div>`:"");
+}
+function updateNavBadges(){
+  const due=activeReminders().filter(x=>x.status==="Hoy"||x.status==="Vencido");
+  const byTop={}; due.forEach(x=>{ const t=topFor(x.section); if(t) byTop[t.id]=(byTop[t.id]||0)+1; });
+  document.querySelectorAll(".bn-item").forEach(b=>{
+    const n=byTop[b.dataset.top]||0; let dot=b.querySelector(".bn-badge");
+    if(n>0){ if(!dot){ dot=document.createElement("span"); dot.className="bn-badge"; b.appendChild(dot);} dot.textContent=n>9?"9+":n; }
+    else if(dot){ dot.remove(); }
+  });
+}
+
+/* ============================================================
+   CALENDARIO
+   ============================================================ */
+let calY, calM; // año, mes (0-11)
+function renderCalendar(){
+  const cfg=SECTIONS.calendario;
+  if(calY==null){ const n=new Date(); calY=n.getFullYear(); calM=n.getMonth(); }
+  const showAdd=canAdd("calendario",USER.role);
+  const monthName=new Date(calY,calM,1).toLocaleDateString("es-MX",{month:"long",year:"numeric"});
+
+  let head=`<div class="panel-head">
+    <div><h2>Calendario</h2><p>${esc(cfg.desc)}</p></div>
+    ${actionBtns("calendario","Agregar evento")}
+  </div>`;
+
+  // grid del mes
+  const first=new Date(calY,calM,1).getDay(); // 0 dom
+  const days=new Date(calY,calM+1,0).getDate();
+  const today=new Date(); const isThisMonth=today.getFullYear()===calY&&today.getMonth()===calM;
+  const dows=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  let cells=dows.map(d=>`<div class="dow">${d}</div>`).join("");
+  for(let i=0;i<first;i++) cells+=`<div class="cal-cell out"></div>`;
+  const evByDay={};
+  calItems().forEach(it=>{
+    const [y,m,d]=it.fecha.split("-").map(Number);
+    if(y===calY && m-1===calM){ (evByDay[d]=evByDay[d]||[]).push(it); }
+  });
+  for(let d=1; d<=days; d++){
+    const dayList=(evByDay[d]||[]).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
+    const shown=dayList.slice(0,3).map(it=>
+      `<div class="cal-ev ${it.cls}" title="${esc(it.label)}">${it.hora?esc(it.hora)+" ":""}${esc(it.label.split(":")[0].trim())}</div>`
+    ).join("");
+    const more=dayList.length>3?`<div class="cal-more">+${dayList.length-3} más</div>`:"";
+    const iso=`${calY}-${String(calM+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    const clickable=dayList.length?`onclick="openDay('${iso}')" style="cursor:pointer"`:"";
+    cells+=`<div class="cal-cell ${isThisMonth&&today.getDate()===d?"today":""}" ${clickable}><div class="dn">${d}</div>${shown}${more}</div>`;
+  }
+
+  // lista de todo lo del calendario (todas las secciones), ordenado por fecha
+  const seenCal=new Set();
+  const sorted=calItems().filter(it=>{ if(seenCal.has(it.id)) return false; seenCal.add(it.id); return true; }).sort((a,b)=>(a.fecha+ (a.hora||"")).localeCompare(b.fecha+(b.hora||"")));
+  let list="";
+  if(sorted.length){
+    list=`<div class="card table-wrap" style="margin-top:18px"><table>
+      <thead><tr><th>Fecha</th><th>Origen</th><th>Detalle</th><th></th></tr></thead>
+      <tbody>${sorted.map(it=>{
+        const st=reminderStatus({fecha:it.fecha, recordatorio:["El mismo día (7:00 a.m.)"]});
+        const dcls = st&&st.status==="Hoy"?"due-today":(st&&st.status==="Vencido"?"due-over":"cell-strong");
+        return `<tr class="rowclick" onclick="openDetail('${it.section}','${it.id}')">
+        <td class="${dcls}">${fmtDate(it.fecha)}${it.hora?" "+esc(it.hora):""}</td>
+        <td>${esc(SECTIONS[it.section]?SECTIONS[it.section].title:it.section)}</td>
+        <td>${esc(it.label)}</td>
+        <td class="chev">${CHEVR}</td>
+      </tr>`;}).join("")}</tbody></table></div>`;
+  }
+
+  $("#panel").innerHTML = head + `<div class="card" style="padding:16px">
+      <div class="cal-head">
+        <button class="btn ghost sm" onclick="calNav(-1)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <div class="title">${esc(monthName)}</div>
+        <button class="btn ghost sm" onclick="calNav(1)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+        <div style="flex:1"></div>
+        <button class="btn ghost sm" onclick="calToday()">Hoy</button>
+      </div>
+      <div class="cal-grid">${cells}</div>
+    </div>` + list;
+}
+function calNav(d){ calM+=d; if(calM<0){calM=11;calY--;} if(calM>11){calM=0;calY++;} renderCalendar(); }
+function calToday(){ const n=new Date(); calY=n.getFullYear(); calM=n.getMonth(); renderCalendar(); }
+const CAL_CLS = { reu_mie:"c-reu", reu_dom:"c-reu", reu_limp:"c-limp", disc_local:"c-disc", anuncios:"c-anun", territorios:"c-terr", calendario:"c-cal" };
+function calItemLabel(section, r){
+  switch(section){
+    case "reu_mie": case "reu_dom": return `${r.puesto||"Reunión"}${r.persona?": "+r.persona:""}`;
+    case "reu_limp": return "Limpieza: "+(r.grupo||"");
+    case "disc_local": return "Discurso: "+(r.discursante||r.congregacion||"");
+    case "anuncios": return r.titulo || "Anuncio";
+    case "territorios": return "Territorio "+(r.territorio||"")+(r.capitan?": "+r.capitan:"");
+    case "calendario": return r.titulo || "Evento";
+    default: return (SECTIONS[section]&&SECTIONS[section].title)||"Registro";
+  }
+}
+function isoLocal(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function calItems(){
+  const out=[];
+  Object.keys(DATA.sections||{}).forEach(section=>{
+    const cfg=SECTIONS[section]; if(!cfg || cfg.noCal) return;
+    (DATA.sections[section]||[]).forEach(r=>{
+      if(!r || !r.fecha) return;
+      const base={section, id:r.id, hora:r.hora||"", label:calItemLabel(section,r),
+        cls: section==="calendario" ? ("t-"+(r.tipo||"otro").toLowerCase().replace(/[^a-z]/g,"")) : (CAL_CLS[section]||"c-cal")};
+      out.push({...base, fecha:r.fecha});
+      if(r.fecha2 && r.fecha2!==r.fecha) out.push({...base, fecha:r.fecha2});
+      // compatibilidad con registros viejos que usaban rango
+      if(r.fecha_fin && r.fecha_fin>r.fecha && !r.fecha2){
+        let d=new Date(r.fecha+"T00:00"); const end=new Date(r.fecha_fin+"T00:00"); let n=0;
+        d.setDate(d.getDate()+1);
+        while(d<=end && n<90){ out.push({...base, fecha:isoLocal(d)}); d.setDate(d.getDate()+1); n++; }
+      }
+    });
+  });
+  return out;
+}
+/* ventana de detalle (desde el calendario) */
+function openDetail(section,id){
+  const cfg=SECTIONS[section]; const r=(DATA.sections[section]||[]).find(x=>x.id===id);
+  if(!cfg||!r) return;
+  $("#dt-title").textContent = cfg.title;
+  const rows = cfg.fields.filter(f=>f.t!=="file" && f.k!=="fecha" && f.k!=="hora").map(f=>{
+    let v=r[f.k]; if(Array.isArray(v)) v=v.join(", ");
+    if(v==null||v==="") return "";
+    let disp;
+    if(f.t==="maps") disp=`<a href="${esc(v)}" target="_blank" rel="noopener">Abrir en Google Maps</a>`;
+    else if(f.t==="tel") disp=`<a href="tel:${esc(String(v).replace(/[^\d+]/g,""))}">${esc(v)}</a>`;
+    else disp=esc(v);
+    return `<div class="dt-row"><div class="dt-k">${esc(f.l)}</div><div class="dt-v">${disp}</div></div>`;
+  }).filter(Boolean).join("");
+  const fileField = cfg.fields.find(f=>f.t==="file");
+  const hasFile = fileField && r[fileField.k] && (r[fileField.k].id||r[fileField.k].data);
+  $("#dt-body").innerHTML = `<div class="dt-meta">${fmtDate(r.fecha)}${r.hora?" · "+esc(r.hora):""}</div>` + (rows||`<p class="meta">Sin datos adicionales.</p>`);
+  const ca=canAssign(section, USER.role);
+  $("#dt-foot").innerHTML =
+    (hasFile?`<button class="btn ghost" onclick="closeDetail();openAttach('${section}','${id}')">Ver archivo</button>`:"") +
+    (ca?`<button class="btn ghost" onclick="closeDetail();openForm('${section}','${id}')">Editar</button>`:"") +
+    (ca?`<button class="btn ghost del" onclick="closeDetail();delRecord('${section}','${id}')">Eliminar</button>`:"") +
+    `<button class="btn accent" onclick="closeDetail()">Cerrar</button>`;
+  $("#detailov").classList.add("show");
+}
+function closeDetail(){ $("#detailov").classList.remove("show"); }
+function openDay(iso){
+  const items=calItems().filter(it=>it.fecha===iso).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
+  $("#day-title").textContent = fmtDate(iso);
+  $("#day-body").innerHTML = items.length
+    ? items.map(it=>`<button class="day-item" onclick="closeDay();openDetail('${it.section}','${it.id}')">
+        <span class="day-dot ${it.cls}"></span>
+        <span class="day-tx"><b>${esc(it.label)}</b><span class="meta">${esc(SECTIONS[it.section]?SECTIONS[it.section].title:it.section)}${it.hora?" · "+esc(it.hora):""}</span></span>
+        <span class="chev">${CHEVR}</span></button>`).join("")
+    : `<p class="meta">Sin actividades este día.</p>`;
+  $("#dayov").classList.add("show");
+}
+function closeDay(){ $("#dayov").classList.remove("show"); }
+function evClick(id){ openDetail("calendario",id); }
+/* mapa en grande, dentro de la app */
+function openMapModal(){ const f=$("#map-frame"); if(f && !f.getAttribute("src")) f.setAttribute("src","https://www.google.com/maps/d/embed?mid="+TERR_MID); $("#mapov").classList.add("show"); }
+function closeMapModal(){ $("#mapov").classList.remove("show"); }
+
+/* ============================================================
+   USUARIOS (solo anciano)
+   ============================================================ */
+function renderReunionesBoard(){
+  const todayT = startOfDay(new Date());
+  const seen=new Set();
+  const items=calItems()
+    .filter(it=>["reu_mie","reu_dom","reu_limp"].includes(it.section))
+    .filter(it=>{ if(seen.has(it.id))return false; seen.add(it.id); return true; })
+    .filter(it=> startOfDay(new Date(it.fecha+"T00:00")) >= todayT )
+    .sort((a,b)=>(a.fecha+(a.hora||"")).localeCompare(b.fecha+(b.hora||"")));
+  const head=`<div class="panel-head"><div><h2>Reuniones</h2><p>Próximas asignaciones (solo lectura).</p></div></div>`;
+  let body;
+  if(!items.length){
+    body=`<div class="card empty"><p>No hay asignaciones próximas.</p></div>`;
+  }else{
+    const byDate={}; items.forEach(it=>{ (byDate[it.fecha]=byDate[it.fecha]||[]).push(it); });
+    body=Object.keys(byDate).sort().map(date=>`
+      <div class="card" style="margin-bottom:12px;padding:14px 14px 8px">
+        <div class="board-date">${fmtDate(date)}</div>
+        ${byDate[date].map(it=>`<button class="day-item" onclick="openDetail('${it.section}','${it.id}')">
+            <span class="day-dot ${it.cls}"></span>
+            <span class="day-tx"><b>${esc(it.label)}</b><span class="meta">${esc(SECTIONS[it.section].title)}</span></span>
+            <span class="chev">${CHEVR}</span></button>`).join("")}
+      </div>`).join("");
+  }
+  $("#panel").innerHTML = head + body;
+}
+function renderPerms(){
+  const menus=[["reuniones","Reuniones"],["discursos","Discursos"],["anuncios","Anuncios"],["territorios","Servicio"]];
+  const roles=["Publicador","Precursor","Siervo ministerial"];
+  const head=`<div class="panel-head"><div><h2>Permisos por menú</h2><p>Marca qué privilegios pueden asignar (crear/editar/eliminar) en cada menú. El Anciano siempre puede.</p></div></div>`;
+  const rows=menus.map(([g,label])=>{
+    const allowed=(DATA.permsConfig&&DATA.permsConfig[g])||[];
+    const checks=roles.map(role=>`
+      <label class="perm-chk">
+        <input type="checkbox" ${allowed.includes(role)?"checked":""} onchange="togglePerm('${g}','${role}',this.checked)">
+        <span>${esc(role)}</span>
+      </label>`).join("");
+    return `<div class="card" style="margin-bottom:12px;padding:14px">
+      <div class="board-date">${esc(label)}</div>
+      <div class="perm-row">${checks}
+        <label class="perm-chk fixed"><input type="checkbox" checked disabled><span>Anciano</span></label>
+      </div>
+      ${g==="discursos"?`<p class="meta" style="margin:8px 0 0">Nota: si un privilegio no puede asignar en Discursos, tampoco verá ese menú.</p>`:""}
+    </div>`;
+  }).join("");
+  const note=`<div class="card" style="padding:14px"><p class="meta" style="margin:0">Quien no pueda asignar verá: Reuniones como tablero de solo lectura, Servicio y Anuncios en solo lectura, el Calendario normal, y no verá Discursos. Estos controles son de interfaz; la restricción "blindada" llegará con la nube.</p></div>`;
+  $("#panel").innerHTML = head + rows + note;
+}
+function togglePerm(group, role, on){
+  DATA.permsConfig=DATA.permsConfig||{};
+  const arr=DATA.permsConfig[group]=DATA.permsConfig[group]||[];
+  const i=arr.indexOf(role);
+  if(on && i<0) arr.push(role);
+  if(!on && i>=0) arr.splice(i,1);
+  save(DATA); toast("Permiso actualizado");
+}
+function renderUsers(){
+  $("#crumb").textContent="Administración · Usuarios";
+  const rows=DATA.users.map(u=>`<tr>
+    <td class="cell-strong">${esc(u.name||"—")}<div class="meta">@${esc(u.username)}</div></td>
+    <td>${badgeFor("rol",u.role)}</td>
+    <td><div class="row-actions">
+      <button class="btn ghost sm" onclick="openUser('${u.id}')">Editar</button>
+      ${u.id===USER.id?"":`<button class="btn danger sm" onclick="delUser('${u.id}')">Eliminar</button>`}
+    </div></td></tr>`).join("");
+  $("#panel").innerHTML=`<div class="panel-head">
+      <div><h2>Usuarios</h2><p>Asigna usuario, contraseña y privilegio de servicio.</p></div>
+      <button class="btn accent" onclick="openUser()">+ Nuevo usuario</button>
+    </div>
+    <div class="card table-wrap"><table>
+      <thead><tr><th>Nombre</th><th>Privilegio</th><th style="text-align:right">Acciones</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+}
+let userCtx=null;
+function openUser(id){
+  if(USER.role!=="Anciano"){ toast("Solo un anciano."); return; }
+  const u=id?DATA.users.find(x=>x.id===id):{};
+  userCtx={id};
+  $("#m-title").textContent=id?"Editar usuario":"Nuevo usuario";
+  $("#m-body").innerHTML=`
+    <div class="field"><label>Nombre</label><input id="u-name" value="${esc(u.name||"")}" placeholder="Nombre y apellido"></div>
+    <div class="field"><label>Usuario *</label><input id="u-user" value="${esc(u.username||"")}" placeholder="usuario"></div>
+    <div class="field" style="${REQUIRE_PASSWORD?"":"display:none"}"><label>Contraseña *</label><input id="u-pass" value="${esc(u.password||"")}" placeholder="contraseña"></div>
+    <div class="field"><label>Privilegio de servicio *</label>
+      <select id="u-role">${ROLES.map(r=>`<option ${r===u.role?"selected":""}>${r}</option>`).join("")}</select></div>`;
+  $("#m-save").textContent=id?"Guardar cambios":"Crear usuario";
+  $("#m-save").dataset.mode="user";
+  $("#overlay").classList.add("show");
+}
+function saveUser(){
+  const name=$("#u-name").value.trim();
+  const username=$("#u-user").value.trim();
+  const password=$("#u-pass").value;
+  const role=$("#u-role").value;
+  if(!username){ toast("Falta: Usuario"); return; }
+  if(REQUIRE_PASSWORD && !password){ toast("Falta: Contraseña"); return; }
+  const dup=DATA.users.find(x=>x.username.toLowerCase()===username.toLowerCase() && x.id!==(userCtx.id||""));
+  if(dup){ toast("Ese usuario ya existe"); return; }
+  if(userCtx.id){
+    const i=DATA.users.findIndex(x=>x.id===userCtx.id);
+    DATA.users[i]={...DATA.users[i],name,username,password,role};
+    if(USER.id===userCtx.id){ USER=DATA.users[i]; $("#whoRole").textContent=USER.role; buildBottomNav(); const tt=topFor(CURRENT); goTop(tt?tt.id:"reuniones"); }
+    toast("Usuario actualizado");
+  }else{
+    DATA.users.push({id:uid(),name,username,password,role});
+    toast("Usuario creado");
+  }
+  save(DATA); closeModalUser(); renderUsers();
+}
+async function delUser(id){
+  if(USER.role!=="Anciano"){ toast("Solo un anciano."); return; }
+  if(id===USER.id){ toast("No puedes eliminar tu propia sesión."); return; }
+  const elders=DATA.users.filter(u=>u.role==="Anciano");
+  const target=DATA.users.find(u=>u.id===id);
+  if(target.role==="Anciano" && elders.length<=1){ toast("Debe quedar al menos un anciano."); return; }
+  if(!(await uiConfirm("¿Eliminar este usuario?"))) return;
+  DATA.users=DATA.users.filter(u=>u.id!==id); save(DATA); renderUsers(); toast("Usuario eliminado");
+}
+function closeModalUser(){ $("#overlay").classList.remove("show"); userCtx=null; $("#m-save").dataset.mode=""; }
+
+/* ============================================================
+   MODAL: enrutar guardar/cancelar
+   ============================================================ */
+$("#m-save").onclick=()=>{ if($("#m-save").dataset.mode==="user") saveUser(); else saveForm(); };
+$("#m-cancel").onclick=()=>{ if($("#m-save").dataset.mode==="user") closeModalUser(); else closeModal(); };
+$("#m-close").onclick=()=>{ if($("#m-save").dataset.mode==="user") closeModalUser(); else closeModal(); };
+$("#overlay").onclick=e=>{ if(e.target===$("#overlay")){ if($("#m-save").dataset.mode==="user") closeModalUser(); else closeModal(); } };
+
+$("#logout").onclick=doLogout;
+
+/* instalar como app (PWA) */
+let deferredInstall=null;
+window.addEventListener("beforeinstallprompt",function(e){ e.preventDefault(); deferredInstall=e; const b=$("#installBtn"); if(b) b.style.display="block"; });
+window.addEventListener("appinstalled",function(){ deferredInstall=null; const b=$("#installBtn"); if(b) b.style.display="none"; toast("App instalada"); });
+(function(){ const b=$("#installBtn"); if(!b) return; b.onclick=async function(){ if(!deferredInstall){ toast("En el menú del navegador: \u201CInstalar app\u201D / \u201CAgregar a inicio\u201D"); return; } deferredInstall.prompt(); try{ await deferredInstall.userChoice; }catch(_){ } deferredInstall=null; b.style.display="none"; }; })();
+
+/* importar: archivo o texto pegado */$("#impfile").onchange=function(){ const f=this.files&&this.files[0]; const s=importSection; if(f&&s){ closeImport(); readImportFile(f,s); } this.value=""; };
+$("#imp-do").onclick=()=>{ if(!importSection) return; const t=$("#imp-text").value.trim(); if(!t){ toast("Pega datos o elige un archivo"); return; } const s=importSection; closeImport(); importRows(s, parseCSV(t)); };
+$("#imp-cancel").onclick=closeImport;
+$("#imp-close").onclick=closeImport;
+$("#importov").onclick=e=>{ if(e.target===$("#importov")) closeImport(); };
+
+/* lista (catálogo) de territorios */
+let catKind="terr";
+function catArr(kind){ if(kind==="disc"){ DATA.discursantesCatalog=DATA.discursantesCatalog||[]; return DATA.discursantesCatalog; } DATA.territoriosCatalog=DATA.territoriosCatalog||[]; return DATA.territoriosCatalog; }
+function openCatalog(kind){
+  const section = kind==="disc" ? "disc_ext" : "territorios";
+  if(!canAdd(section,USER.role)){ toast("Sin permiso"); return; }
+  catKind=kind;
+  $("#tc-h").textContent   = kind==="disc" ? "Lista de discursantes" : "Lista de territorios";
+  $("#tc-hint").textContent= kind==="disc" ? "Agrega los discursantes. Podrás elegirlos al programar un discurso externo." : "Agrega los territorios de tu mapa. Luego podrás elegirlos al asignar.";
+  $("#tc-label").textContent=kind==="disc" ? "Agregar discursante (nombre)" : "Agregar territorio (número o nombre)";
+  $("#tc-input").placeholder=kind==="disc" ? "Ej. Hno. Pérez" : "Ej. 12  o  Ameyalco Centro";
+  $("#tc-range").style.display = kind==="disc" ? "none" : "block";
+  renderCatalog(); $("#terrcat").classList.add("show");
+}
+function openTerrCatalog(){ openCatalog("terr"); }
+function openDiscCatalog(){ openCatalog("disc"); }
+function closeTerrCatalog(){ $("#terrcat").classList.remove("show"); renderSection(CURRENT); }
+function sortCat(){ catArr(catKind).sort((a,b)=>String(a).localeCompare(String(b),"es",{numeric:catKind!=="disc",sensitivity:"base"})); }
+function renderCatalog(){
+  const list=catArr(catKind);
+  $("#tc-list").innerHTML = list.length
+    ? list.map((t,i)=>`<span class="chip">${esc(t)} <button onclick="delTerr(${i})" aria-label="quitar">×</button></span>`).join("")
+    : `<p class="meta">Aún no hay elementos en la lista.</p>`;
+}
+function addTerr(){
+  const el=$("#tc-input"); const v=el.value.trim(); if(!v) return;
+  const arr=catArr(catKind);
+  if(arr.includes(v)){ toast("Ya está en la lista"); el.value=""; return; }
+  arr.push(v); sortCat(); save(DATA); el.value=""; renderCatalog();
+}
+function addTerrRange(){
+  const a=parseInt($("#tc-from").value,10), b=parseInt($("#tc-to").value,10);
+  if(isNaN(a)||isNaN(b)||b<a){ toast("Rango no válido"); return; }
+  if(b-a>500){ toast("Rango demasiado grande"); return; }
+  const arr=catArr(catKind);
+  for(let i=a;i<=b;i++){ const s=String(i); if(!arr.includes(s)) arr.push(s); }
+  sortCat(); save(DATA); $("#tc-from").value=""; $("#tc-to").value=""; renderCatalog();
+}
+function delTerr(i){ catArr(catKind).splice(i,1); save(DATA); renderCatalog(); }
+$("#tc-add").onclick=addTerr;
+$("#tc-input").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); addTerr(); } });
+$("#tc-addrange").onclick=addTerrRange;
+$("#tc-close").onclick=closeTerrCatalog;
+$("#tc-done").onclick=closeTerrCatalog;
+$("#terrcat").onclick=e=>{ if(e.target===$("#terrcat")) closeTerrCatalog(); };
+$("#dt-close").onclick=closeDetail;
+$("#detailov").onclick=e=>{ if(e.target===$("#detailov")) closeDetail(); };
+$("#map-close").onclick=closeMapModal;
+$("#mapov").onclick=e=>{ if(e.target===$("#mapov")) closeMapModal(); };
+$("#day-close").onclick=closeDay;
+$("#day-done").onclick=closeDay;
+$("#dayov").onclick=e=>{ if(e.target===$("#dayov")) closeDay(); };
+
+/* confirmación propia (el confirm() nativo no funciona en el visor de la app) */
+function uiConfirm(msg){
+  return new Promise(res=>{
+    $("#cf-msg").textContent=msg;
+    $("#confirm").classList.add("show");
+    const done=v=>{ $("#confirm").classList.remove("show"); $("#cf-yes").onclick=null; $("#cf-no").onclick=null; $("#confirm").onclick=null; res(v); };
+    $("#cf-yes").onclick=()=>done(true);
+    $("#cf-no").onclick=()=>done(false);
+    $("#confirm").onclick=e=>{ if(e.target===$("#confirm")) done(false); };
+  });
+}
+
+/* hoja de acciones (editar / eliminar) */
+let rowCtx=null;
+function openRowActions(section,id){
+  const ca=canAssign(section, USER.role);
+  const r=(DATA.sections[section]||[]).find(x=>x.id===id);
+  const att = hasAttach(section,r);
+  const canDone = false;
+  if(!ca && !att && !canDone) return;
+  rowCtx={section,id};
+  $("#sheet-view").style.display = att?"block":"none";
+  const dbtn=$("#sheet-done");
+  if(canDone){ dbtn.style.display="block"; dbtn.textContent = (r&&r.estado==="Hecho")?"Marcar como pendiente":"Marcar como hecho"; }
+  else dbtn.style.display="none";
+  $("#sheet-edit").style.display = ca?"block":"none";
+  $("#sheet-del").style.display = ca?"block":"none";
+  $("#sheet").classList.add("show");
+}
+function toggleTerrDone(section,id){
+  if(!canAdd(section,USER.role)){ toast("Sin permiso"); return; }
+  const arr=DATA.sections[section]; const i=arr.findIndex(x=>x.id===id); if(i<0) return;
+  arr[i].estado = arr[i].estado==="Hecho" ? "Pendiente" : "Hecho";
+  save(DATA); toast(arr[i].estado==="Hecho"?"Marcado como hecho":"Marcado como pendiente"); go(CURRENT);
+}
+function closeSheet(){ $("#sheet").classList.remove("show"); rowCtx=null; }
+$("#sheet-view").onclick=()=>{ if(!rowCtx) return; const c=rowCtx; closeSheet(); openAttach(c.section,c.id); };
+$("#sheet-done").onclick=()=>{ if(!rowCtx) return; const c=rowCtx; closeSheet(); toggleTerrDone(c.section,c.id); };
+$("#sheet-edit").onclick=()=>{ if(!rowCtx) return; const c=rowCtx; closeSheet(); openForm(c.section,c.id); };
+$("#sheet-del").onclick=()=>{ if(!rowCtx) return; const c=rowCtx; closeSheet(); delRecord(c.section,c.id); };
+$("#sheet-cancel").onclick=closeSheet;
+$("#sheet").onclick=e=>{ if(e.target===$("#sheet")) closeSheet(); };
+
+/* login events */
+$("#li-btn").onclick=doLogin;
+$("#li-pass").addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
+$("#li-user").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#li-pass").focus(); });
+
+refreshLoginHint();
+
+/* exponer para tests en Node (no afecta navegador) */
+if(typeof module!=="undefined"){ module.exports={perms,canAdd,ROLES}; }
+</script>
+</body>
+</html>
