@@ -16,6 +16,36 @@
 if("serviceWorker" in navigator){ window.addEventListener("load",function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, onSnapshot, writeBatch, serverTimestamp }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyC-4ogGeFr0vsmTDXX4MIrtBtCaGy3HUmg",
+    authDomain: "congregacion-5205e.firebaseapp.com",
+    projectId: "congregacion-5205e",
+    storageBucket: "congregacion-5205e.firebasestorage.app",
+    messagingSenderId: "893688054828",
+    appId: "1:893688054828:web:c7bb4f231a643bf610fd89"
+  };
+
+  try{
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+    // instancia secundaria: crear usuarios sin cerrar la sesión del anciano
+    const app2  = initializeApp(firebaseConfig, "secundaria");
+    const auth2 = getAuth(app2);
+
+    window.FB = { app, auth, db, auth2,
+      signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
+      doc, getDoc, setDoc, deleteDoc, collection, onSnapshot, writeBatch, serverTimestamp };
+  }catch(e){ window.FB = null; console.error("Firebase no disponible", e); }
+  window.dispatchEvent(new Event("fb-ready"));
+</script>
 <style>
   :root{
     --bg:#ffffff;
@@ -266,6 +296,10 @@ if("serviceWorker" in navigator){ window.addEventListener("load",function(){ nav
       <div class="dot">CA</div>
       <div><h1 id="brandTitle">Comunicación y Anuncios</h1><p id="brandSub">Acceso con privilegio de servicio</p></div>
     </div>
+    <div class="field" id="code-field">
+      <label for="li-code">Código de congregación</label>
+      <input id="li-code" placeholder="Ej. ameyalco" autocapitalize="none">
+    </div>
     <div class="field">
       <label for="li-user">Usuario</label>
       <input id="li-user" autocomplete="username" placeholder="Tu usuario">
@@ -276,10 +310,31 @@ if("serviceWorker" in navigator){ window.addEventListener("load",function(){ nav
     </div>
     <div class="err" id="li-err"></div>
     <button class="btn full" id="li-btn">Entrar</button>
+    <button class="btn ghost full" id="li-new" style="margin-top:10px">Crear congregación nueva</button>
     <button class="btn ghost full" id="installBtn" style="display:none;margin-top:10px">Instalar app</button>
     <div class="hint" id="li-hint"></div>
   </div>
 </section>
+
+<!-- ===================== CREAR CONGREGACIÓN ===================== -->
+<div class="overlay" id="newcong">
+  <div class="modal">
+    <div class="modal-head"><h3>Crear congregación</h3><button class="x" id="nc-close">×</button></div>
+    <div class="modal-body">
+      <p class="meta" style="margin-top:0">Esto crea una congregación nueva en la nube y te deja como <b>Anciano</b>. Guarda bien estos datos.</p>
+      <div class="field"><label>Código de congregación *</label><input id="nc-code" placeholder="Ej. ameyalco (sin espacios)" autocapitalize="none"></div>
+      <div class="field"><label>Nombre de la congregación *</label><input id="nc-name" placeholder="Ej. Ameyalco"></div>
+      <div class="field"><label>Tu nombre *</label><input id="nc-person" placeholder="Tu nombre completo"></div>
+      <div class="field"><label>Tu usuario *</label><input id="nc-user" placeholder="Ej. manveru" autocapitalize="none"></div>
+      <div class="field"><label>Tu contraseña * (mínimo 6 caracteres)</label><input id="nc-pass" type="password" placeholder="contraseña"></div>
+      <div class="err" id="nc-err"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" id="nc-cancel">Cancelar</button>
+      <button class="btn accent" id="nc-save">Crear</button>
+    </div>
+  </div>
+</div>
 
 <!-- ===================== APP ===================== -->
 <div id="app">
@@ -413,6 +468,11 @@ if("serviceWorker" in navigator){ window.addEventListener("load",function(){ nav
    ALMACENAMIENTO
    ============================================================ */
 const STORE_KEY = "cca_data_v1";
+
+/* --- Modo nube (Firebase). Cambia CLOUD a false para volver al modo local. --- */
+const CLOUD = true;
+const REQUIRE_PASSWORD = CLOUD;   // en la nube la contraseña es obligatoria
+let CONG = "";                    // código de congregación activo
 const ROLES = ["Publicador","Precursor","Siervo ministerial","Anciano"];
 
 function defaultTerr(){ return Array.from({length:32},(_,i)=>String(i+1)); }
@@ -476,7 +536,8 @@ function loadData(){
     return d;
   }catch(e){ const d=seed(); save(d); return d; }
 }
-function save(d){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(d)); }catch(e){ toast("No se pudo guardar (almacenamiento)"); } }
+function saveLocal(d){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(d)); }catch(e){} }
+function save(d){ saveLocal(d); if(typeof CLOUD!=="undefined" && CLOUD && CONG && USER && USER.role==="Anciano") cloudPutMeta(); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 
 let DATA = loadData();
@@ -718,6 +779,14 @@ function grupoOpts(){
    ============================================================ */
 function refreshLoginHint(){
   const pf=$("#pass-field"); if(pf) pf.style.display = REQUIRE_PASSWORD ? "block" : "none";
+  const cf=$("#code-field"); if(cf) cf.style.display = CLOUD ? "block" : "none";
+  const nb=$("#li-new");     if(nb) nb.style.display = CLOUD ? "block" : "none";
+  if(CLOUD){
+    const last=localStorage.getItem("cca_last_cong");
+    if(last && $("#li-code") && !$("#li-code").value) $("#li-code").value=last;
+    $("#li-hint").innerHTML = "Los datos se comparten con tu congregación.<br>Si aún no existe, toca <b>Crear congregación nueva</b>.";
+    return;
+  }
   const onlyDefault = DATA.users.length===1 && DATA.users[0].username==="anciano";
   if(!REQUIRE_PASSWORD){
     $("#li-hint").innerHTML = "Acceso sin contraseña (temporal) · escribe tu usuario.<br>Para probar: <b>anciano</b> (todo) o <b>publicador</b> (vista sin privilegios).";
@@ -727,11 +796,157 @@ function refreshLoginHint(){
     ? "Primer ingreso · usuario <b>anciano</b> · contraseña <b>1234</b><br>Cámbialo y crea los demás usuarios en <b>Usuarios</b>."
     : "Ingresa con el usuario que te asignó un anciano.";
 }
-/* Acceso con contraseña: desactivado por ahora.
-   Para volver a activarlo, cambia esta línea a: const REQUIRE_PASSWORD = true; */
-const REQUIRE_PASSWORD = false;
+/* ============================================================
+   NUBE (Firebase) — Fase 1: datos compartidos por congregación
+   ============================================================ */
+let unsubs = [];                    // cancelar suscripciones al salir
+
+function fbReady(){ return CLOUD && window.FB; }
+function synthEmail(user, code){ return `${String(user).trim().toLowerCase()}@${String(code).trim().toLowerCase()}.congregacion.app`; }
+function congRef(){ const {doc,db}=window.FB; return doc(db,"congregaciones",CONG); }
+function metaRef(){ const {doc,db}=window.FB; return doc(db,"congregaciones",CONG,"meta","general"); }
+function recRef(id){ const {doc,db}=window.FB; return doc(db,"congregaciones",CONG,"records",id); }
+function memberRef(uid){ const {doc,db}=window.FB; return doc(db,"congregaciones",CONG,"members",uid); }
+
+function cloudErr(e){
+  const c=(e&&e.code)||"";
+  if(c==="auth/invalid-credential"||c==="auth/wrong-password"||c==="auth/user-not-found") return "Usuario o contraseña incorrectos.";
+  if(c==="auth/email-already-in-use") return "Ese usuario ya existe en esta congregación.";
+  if(c==="auth/weak-password") return "La contraseña debe tener al menos 6 caracteres.";
+  if(c==="auth/network-request-failed") return "Sin conexión a internet.";
+  if(c==="permission-denied") return "Sin permiso (revisa tu privilegio).";
+  return (e&&e.message) || "Ocurrió un error.";
+}
+
+/* ---- Crear congregación (el creador queda como Anciano) ---- */
+async function createCongregation(){
+  if(!fbReady()){ $("#nc-err").textContent="La nube no está disponible."; return; }
+  const code=$("#nc-code").value.trim().toLowerCase().replace(/\s+/g,"-");
+  const name=$("#nc-name").value.trim();
+  const person=$("#nc-person").value.trim();
+  const user=$("#nc-user").value.trim().toLowerCase();
+  const pass=$("#nc-pass").value;
+  if(!code||!name||!person||!user||!pass){ $("#nc-err").textContent="Llena todos los campos."; return; }
+  if(pass.length<6){ $("#nc-err").textContent="La contraseña debe tener al menos 6 caracteres."; return; }
+  const {auth,db,doc,getDoc,createUserWithEmailAndPassword,writeBatch,serverTimestamp}=window.FB;
+  $("#nc-err").textContent="Creando…";
+  try{
+    const exists=await getDoc(doc(db,"congregaciones",code));
+    if(exists.exists()){ $("#nc-err").textContent="Ese código ya existe. Elige otro."; return; }
+    const cred=await createUserWithEmailAndPassword(auth, synthEmail(user,code), pass);
+    const uid=cred.user.uid;
+    const batch=writeBatch(db);
+    batch.set(doc(db,"congregaciones",code), { nombre:name, owner:uid, creado:serverTimestamp() });
+    batch.set(doc(db,"congregaciones",code,"members",uid), { name:person, username:user, role:"Anciano" });
+    batch.set(doc(db,"congregaciones",code,"meta","general"), {
+      config:{ congregacion:name, mapId:"", grupos:5 },
+      permsConfig: seed().permsConfig,
+      territoriosCatalog: defaultTerr(),
+      discursantesCatalog: []
+    });
+    await batch.commit();
+    closeNewCong();
+    toast("Congregación creada");
+    await afterCloudLogin(code, uid, { name:person, username:user, role:"Anciano" });
+  }catch(e){ $("#nc-err").textContent=cloudErr(e); }
+}
+
+/* ---- Entrar ---- */
+async function cloudLogin(){
+  const code=$("#li-code").value.trim().toLowerCase();
+  const user=$("#li-user").value.trim().toLowerCase();
+  const pass=$("#li-pass").value;
+  if(!code||!user||!pass){ $("#li-err").textContent="Escribe código, usuario y contraseña."; return; }
+  const {auth,signInWithEmailAndPassword,getDoc}=window.FB;
+  $("#li-err").textContent="Entrando…";
+  try{
+    const cred=await signInWithEmailAndPassword(auth, synthEmail(user,code), pass);
+    const uid=cred.user.uid;
+    CONG=code;
+    const snap=await getDoc(memberRef(uid));
+    if(!snap.exists()){ $("#li-err").textContent="No perteneces a esa congregación."; await window.FB.signOut(auth); return; }
+    await afterCloudLogin(code, uid, snap.data());
+  }catch(e){ $("#li-err").textContent=cloudErr(e); }
+}
+
+async function afterCloudLogin(code, uid, member){
+  CONG=code;
+  USER={ id:uid, name:member.name, username:member.username, role:member.role };
+  localStorage.setItem("cca_last_cong", code);
+  $("#li-err").textContent="";
+  subscribeCloud();
+  $("#login").style.display="none"; $("#app").style.display="flex";
+  $("#whoName").textContent=USER.name||USER.username;
+  $("#whoRole").textContent=USER.role;
+  applyBranding();
+  buildBottomNav();
+  goTop("reuniones");
+}
+
+/* ---- Sincronización en tiempo real ---- */
+function subscribeCloud(){
+  if(!fbReady()) return;
+  const {onSnapshot,collection,db}=window.FB;
+  unsubscribeCloud();
+  // registros
+  unsubs.push(onSnapshot(collection(db,"congregaciones",CONG,"records"), snap=>{
+    const sec={}; for(const k of Object.keys(seed().sections)) sec[k]=[];
+    snap.forEach(d=>{ const r=d.data(); const s=r.section; if(sec[s]) sec[s].push({...r, id:d.id}); });
+    DATA.sections=sec; saveLocal(DATA); rerender();
+  }, err=>toast(cloudErr(err))));
+  // configuración, permisos y catálogos
+  unsubs.push(onSnapshot(metaRef(), d=>{
+    const m=d.data(); if(!m) return;
+    if(m.config) DATA.config=m.config;
+    if(m.permsConfig) DATA.permsConfig=m.permsConfig;
+    if(Array.isArray(m.territoriosCatalog)) DATA.territoriosCatalog=m.territoriosCatalog;
+    if(Array.isArray(m.discursantesCatalog)) DATA.discursantesCatalog=m.discursantesCatalog;
+    saveLocal(DATA); applyBranding(); rerender();
+  }));
+  // usuarios de la congregación
+  unsubs.push(onSnapshot(collection(db,"congregaciones",CONG,"members"), snap=>{
+    const us=[]; snap.forEach(d=>{ const u=d.data(); us.push({ id:d.id, name:u.name, username:u.username, role:u.role }); });
+    DATA.users=us; saveLocal(DATA);
+    const me=us.find(u=>u.id===USER.id);
+    if(me && me.role!==USER.role){ USER.role=me.role; $("#whoRole").textContent=me.role; buildBottomNav(); }
+    rerender();
+  }));
+}
+function unsubscribeCloud(){ unsubs.forEach(f=>{ try{f();}catch(_){} }); unsubs=[]; }
+function rerender(){ if($("#app").style.display!=="none" && CURRENT) go(CURRENT); }
+
+/* ---- Escrituras ---- */
+async function cloudPutRecord(section, obj){
+  if(!fbReady()||!CONG) return;
+  try{ const {setDoc}=window.FB; const {id,...rest}=obj; await setDoc(recRef(id), {...rest, section}); }
+  catch(e){ toast(cloudErr(e)); }
+}
+async function cloudDelRecord(id){
+  if(!fbReady()||!CONG) return;
+  try{ await window.FB.deleteDoc(recRef(id)); }catch(e){ toast(cloudErr(e)); }
+}
+async function cloudPutMeta(){
+  if(!fbReady()||!CONG) return;
+  try{ await window.FB.setDoc(metaRef(), {
+    config: DATA.config||{}, permsConfig: DATA.permsConfig||{},
+    territoriosCatalog: DATA.territoriosCatalog||[], discursantesCatalog: DATA.discursantesCatalog||[]
+  }); }catch(e){ toast(cloudErr(e)); }
+}
+async function cloudCreateUser(name, username, password, role){
+  const {auth2,createUserWithEmailAndPassword,signOut,setDoc}=window.FB;
+  const cred=await createUserWithEmailAndPassword(auth2, synthEmail(username,CONG), password);
+  await setDoc(memberRef(cred.user.uid), { name, username:String(username).toLowerCase(), role });
+  try{ await signOut(auth2); }catch(_){}
+}
+async function cloudUpdateMember(uid, data){
+  try{ await window.FB.setDoc(memberRef(uid), data); }catch(e){ toast(cloudErr(e)); }
+}
+async function cloudDeleteMember(uid){
+  try{ await window.FB.deleteDoc(memberRef(uid)); }catch(e){ toast(cloudErr(e)); }
+}
 
 function doLogin(){
+  if(CLOUD){ cloudLogin(); return; }
   const u = $("#li-user").value.trim().toLowerCase();
   const p = $("#li-pass").value;
   if(!u){ $("#li-err").textContent="Escribe tu usuario."; return; }
@@ -749,7 +964,8 @@ function doLogin(){
   if(due) toast(`Tienes ${due} recordatorio(s) para hoy o vencidos`);
 }
 function doLogout(){
-  USER=null; $("#app").style.display="none"; $("#login").style.display="grid";
+  if(CLOUD && window.FB){ unsubscribeCloud(); try{ window.FB.signOut(window.FB.auth); }catch(_){} }
+  CONG=""; USER=null; $("#app").style.display="none"; $("#login").style.display="grid";
   $("#li-user").value=""; $("#li-pass").value=""; refreshLoginHint();
 }
 
@@ -822,7 +1038,7 @@ function renderSection(id){
     </div>`;
 
   let catBlock = "";
-  if(cfg.discCat && canAdd(id,USER.role)){
+  if(cfg.discCat && USER.role==="Anciano"){
     catBlock = `<div class="hd-actions" style="margin:-4px 0 16px"><button class="btn ghost" onclick="openDiscCatalog()">Lista de discursantes</button></div>`;
   }
   let mapBlock = "";
@@ -834,7 +1050,7 @@ function renderSection(id){
       <p class="meta" style="margin:0 0 10px">Si el mapa se ve en blanco: en tu Google My Maps ponlo como "cualquiera con el enlace puede ver". En la vista previa de Claude no carga; en la app instalada (GitHub Pages) sí.</p>
       <div class="hd-actions" style="margin-bottom:16px">
         <button class="btn ghost" onclick="openMapModal()">Ver mapa en grande</button>
-        ${canAdd(id,USER.role)?`<button class="btn ghost" onclick="openTerrCatalog()">Lista de territorios</button>`:""}
+        ${USER.role==="Anciano"?`<button class="btn ghost" onclick="openTerrCatalog()">Lista de territorios</button>`:""}
         <a class="btn ghost" href="https://www.google.com/maps/d/viewer?mid=${terrMid()}" target="_blank" rel="noopener">Abrir en Google</a>
       </div>`;
   }
@@ -974,7 +1190,7 @@ function importRows(section, rows){
     const missing=cfg.fields.find(f=>f.req && f.t!=="file" && f.t!=="multi" && !obj[f.k]);
     if(missing){ skipped++; continue; }
     obj.id=uid(); obj.createdBy=USER.id; obj.createdByName=USER.name||USER.username; obj.createdAt=Date.now();
-    DATA.sections[section].push(obj); n++;
+    DATA.sections[section].push(obj); cloudPutRecord(section, obj); n++;
   }
   save(DATA); go(CURRENT);
   toast(n?`${n} registro(s) importado(s)${skipped?` · ${skipped} incompleta(s) omitida(s)`:""}`:"No se importó nada (revisa encabezados y campos obligatorios)");
@@ -1083,14 +1299,16 @@ async function saveForm(){
     if(obj.fecha2 < obj.fecha){ toast("El segundo día no puede ser antes del primero"); return; }
   }
   if(recId){
-    if(!perms(USER.role).canEdit){ toast("Solo un anciano puede modificar."); return; }
+    if(!canAssign(section, USER.role)){ toast("Sin permiso para modificar aquí."); return; }
     const i=DATA.sections[section].findIndex(x=>x.id===recId);
     DATA.sections[section][i]={...DATA.sections[section][i],...obj};
+    cloudPutRecord(section, DATA.sections[section][i]);
     toast("Cambios guardados");
   }else{
     if(!canAdd(section,USER.role)){ toast("Sin permiso."); return; }
     obj.id=uid(); obj.createdBy=USER.id; obj.createdByName=USER.name||USER.username; obj.createdAt=Date.now();
     DATA.sections[section].push(obj);
+    cloudPutRecord(section, obj);
     toast("Registro agregado");
   }
   save(DATA); closeModal(); go(CURRENT);
@@ -1102,6 +1320,7 @@ async function delRecord(section,recId){
   const rec=(DATA.sections[section]||[]).find(x=>x.id===recId);
   if(k && rec && rec[k] && rec[k].id) idbDel(rec[k].id);
   DATA.sections[section]=DATA.sections[section].filter(x=>x.id!==recId);
+  cloudDelRecord(recId);
   save(DATA); toast("Registro eliminado"); go(CURRENT);
 }
 /* ---- Adjuntos: IndexedDB (capacidad grande para imágenes y videos) ---- */
@@ -1477,22 +1696,38 @@ function openUser(id){
   $("#m-body").innerHTML=`
     <div class="field"><label>Nombre</label><input id="u-name" value="${esc(u.name||"")}" placeholder="Nombre y apellido"></div>
     <div class="field"><label>Usuario *</label><input id="u-user" value="${esc(u.username||"")}" placeholder="usuario"></div>
-    <div class="field" style="${REQUIRE_PASSWORD?"":"display:none"}"><label>Contraseña *</label><input id="u-pass" value="${esc(u.password||"")}" placeholder="contraseña"></div>
+    <div class="field" style="${(REQUIRE_PASSWORD && !u.id)?"":"display:none"}"><label>Contraseña * (mínimo 6 caracteres)</label><input id="u-pass" type="password" value="" placeholder="contraseña"></div>
     <div class="field"><label>Privilegio de servicio *</label>
       <select id="u-role">${ROLES.map(r=>`<option ${r===u.role?"selected":""}>${r}</option>`).join("")}</select></div>`;
   $("#m-save").textContent=id?"Guardar cambios":"Crear usuario";
   $("#m-save").dataset.mode="user";
   $("#overlay").classList.add("show");
 }
-function saveUser(){
+async function saveUser(){
   const name=$("#u-name").value.trim();
   const username=$("#u-user").value.trim();
   const password=$("#u-pass").value;
   const role=$("#u-role").value;
   if(!username){ toast("Falta: Usuario"); return; }
-  if(REQUIRE_PASSWORD && !password){ toast("Falta: Contraseña"); return; }
   const dup=DATA.users.find(x=>x.username.toLowerCase()===username.toLowerCase() && x.id!==(userCtx.id||""));
   if(dup){ toast("Ese usuario ya existe"); return; }
+
+  if(CLOUD){
+    try{
+      if(userCtx.id){
+        await cloudUpdateMember(userCtx.id, {name, username:username.toLowerCase(), role});
+        toast("Usuario actualizado");
+      }else{
+        if(!password || password.length<6){ toast("La contraseña debe tener al menos 6 caracteres"); return; }
+        await cloudCreateUser(name, username, password, role);
+        toast("Usuario creado");
+      }
+      closeModalUser();   // la lista se actualiza sola por la sincronización
+    }catch(e){ toast(cloudErr(e)); }
+    return;
+  }
+
+  if(REQUIRE_PASSWORD && !password){ toast("Falta: Contraseña"); return; }
   if(userCtx.id){
     const i=DATA.users.findIndex(x=>x.id===userCtx.id);
     DATA.users[i]={...DATA.users[i],name,username,password,role};
@@ -1511,6 +1746,7 @@ async function delUser(id){
   const target=DATA.users.find(u=>u.id===id);
   if(target.role==="Anciano" && elders.length<=1){ toast("Debe quedar al menos un anciano."); return; }
   if(!(await uiConfirm("¿Eliminar este usuario?"))) return;
+  if(CLOUD){ await cloudDeleteMember(id); toast("Usuario eliminado"); return; }
   DATA.users=DATA.users.filter(u=>u.id!==id); save(DATA); renderUsers(); toast("Usuario eliminado");
 }
 function closeModalUser(){ $("#overlay").classList.remove("show"); userCtx=null; $("#m-save").dataset.mode=""; }
@@ -1541,8 +1777,7 @@ $("#importov").onclick=e=>{ if(e.target===$("#importov")) closeImport(); };
 let catKind="terr";
 function catArr(kind){ if(kind==="disc"){ DATA.discursantesCatalog=DATA.discursantesCatalog||[]; return DATA.discursantesCatalog; } DATA.territoriosCatalog=DATA.territoriosCatalog||[]; return DATA.territoriosCatalog; }
 function openCatalog(kind){
-  const section = kind==="disc" ? "disc_ext" : "territorios";
-  if(!canAdd(section,USER.role)){ toast("Sin permiso"); return; }
+  if(USER.role!=="Anciano"){ toast("Solo un anciano edita las listas."); return; }
   catKind=kind;
   $("#tc-h").textContent   = kind==="disc" ? "Lista de discursantes" : "Lista de territorios";
   $("#tc-hint").textContent= kind==="disc" ? "Agrega los discursantes. Podrás elegirlos al programar un discurso externo." : "Agrega los territorios de tu mapa. Luego podrás elegirlos al asignar.";
@@ -1635,6 +1870,13 @@ $("#sheet").onclick=e=>{ if(e.target===$("#sheet")) closeSheet(); };
 
 /* login events */
 $("#li-btn").onclick=doLogin;
+function openNewCong(){ $("#nc-err").textContent=""; $("#newcong").classList.add("show"); }
+function closeNewCong(){ $("#newcong").classList.remove("show"); }
+$("#li-new").onclick=openNewCong;
+$("#nc-cancel").onclick=closeNewCong;
+$("#nc-close").onclick=closeNewCong;
+$("#nc-save").onclick=createCongregation;
+$("#newcong").onclick=e=>{ if(e.target===$("#newcong")) closeNewCong(); };
 $("#li-pass").addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
 $("#li-user").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#li-pass").focus(); });
 

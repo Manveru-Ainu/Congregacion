@@ -1,0 +1,86 @@
+==========================================================
+  VERSIÓN EN LA NUBE (Fase 1) — Qué hacer antes de usarla
+==========================================================
+
+La app ya está conectada a tu proyecto de Firebase
+(congregacion-5205e). Los datos ahora se COMPARTEN entre
+todos los de la misma congregación, en tiempo real.
+
+FALTA UN PASO OBLIGATORIO: pegar las reglas de seguridad.
+Sin ellas, Firebase bloquea todo (o, peor, deja todo abierto).
+
+----------------------------------------------------------
+PASO 1 — Pegar las reglas de seguridad (5 minutos)
+----------------------------------------------------------
+1. Entra a https://console.firebase.google.com
+2. Elige el proyecto "Congregacion".
+3. Menú izquierdo: "Bases de datos y almacenamiento" >
+   Firestore.
+4. Arriba, pestaña "Reglas" (Rules).
+5. BORRA todo lo que haya y PEGA el contenido completo del
+   archivo "firestore.rules.txt" (viene en este ZIP).
+6. Botón "Publicar" (Publish).
+
+Estas reglas hacen que:
+- Cada congregación SOLO vea sus propios datos.
+- Solo el Anciano cree usuarios, cambie permisos y edite la
+  configuración y las listas.
+- Los demás solo puedan escribir en los menús que el Anciano
+  les autorizó (Administración > Permisos).
+
+----------------------------------------------------------
+PASO 2 — Crear tu congregación (una sola vez)
+----------------------------------------------------------
+1. Abre la app (la URL de GitHub Pages).
+2. Toca "Crear congregación nueva".
+3. Llena:
+   - Código: sin espacios, en minúsculas. Ej: ameyalco
+     (este código lo usarán TODOS los de tu congregación
+      para entrar; anótalo)
+   - Nombre de la congregación: Ej. Ameyalco
+   - Tu nombre, tu usuario y tu contraseña
+     (mínimo 6 caracteres)
+4. "Crear". Quedas registrado como ANCIANO.
+
+----------------------------------------------------------
+PASO 3 — Dar de alta a los demás
+----------------------------------------------------------
+Como Anciano: menú "Usuarios" > "+ Agregar".
+Escribe nombre, usuario, contraseña (mín. 6) y privilegio.
+Entrégale a cada persona TRES datos:
+   código de congregación + usuario + contraseña
+
+Ellos abren la app, escriben esos tres datos y entran.
+Verán lo mismo que tú, en tiempo real.
+
+----------------------------------------------------------
+OTRA CONGREGACIÓN
+----------------------------------------------------------
+Usa la MISMA app y la MISMA URL. Su anciano toca
+"Crear congregación nueva" con OTRO código. Sus datos quedan
+totalmente separados de los tuyos (lo garantizan las reglas).
+
+----------------------------------------------------------
+IMPORTANTE / LIMITACIONES DE ESTA FASE
+----------------------------------------------------------
+- Los ARCHIVOS ADJUNTOS todavía se guardan en cada teléfono
+  (no se comparten). Eso es la fase 3.
+- Las NOTIFICACIONES con la app cerrada (push) todavía no
+  están. Eso es la fase 2 (requiere activar el plan Blaze).
+  Por ahora los recordatorios se ven DENTRO de la app.
+- Si no hay internet, la app abre con los últimos datos
+  guardados en el teléfono, pero no sincroniza hasta que
+  vuelva la conexión.
+- El correo que ves en Firebase (usuario@codigo.congregacion.app)
+  es interno: sirve para que Firebase identifique a cada
+  persona. Nadie recibe correos ahí.
+
+----------------------------------------------------------
+SI ALGO FALLA
+----------------------------------------------------------
+- "Sin permiso": revisa que publicaste las reglas (Paso 1)
+  y el privilegio de esa persona.
+- "Usuario o contraseña incorrectos": revisa también que el
+  CÓDIGO de congregación esté bien escrito.
+- Para volver al modo local (sin nube), en index.html cambia
+  la línea:  const CLOUD = true;   por:   const CLOUD = false;
