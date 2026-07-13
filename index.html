@@ -902,16 +902,19 @@ async function cloudLogin(){
 
 async function afterCloudLogin(code, uid, member){
   CONG=code;
-  USER={ id:uid, name:member.name, username:member.username, role:member.role };
+  member = member || {};
+  USER={ id:uid, name:member.name||"", username:member.username||"", role:member.role||"Publicador" };
   localStorage.setItem("cca_last_cong", code);
   $("#li-err").textContent="";
-  subscribeCloud();
   $("#login").style.display="none"; $("#app").style.display="flex";
-  $("#whoName").textContent=USER.name||USER.username;
-  $("#whoRole").textContent=USER.role;
-  applyBranding();
+  try{
+    const wn=$("#whoName"); if(wn) wn.textContent=USER.name||USER.username;
+    const wr=$("#whoRole"); if(wr) wr.textContent=USER.role;
+    applyBranding();
+  }catch(e){ console.error(e); }
   buildBottomNav();
   goTop("reuniones");
+  subscribeCloud();   // al final: si algo falla aquí, el menú ya quedó dibujado
 }
 
 /* ---- Sincronización en tiempo real ---- */
@@ -944,7 +947,7 @@ function subscribeCloud(){
   }));
 }
 function unsubscribeCloud(){ unsubs.forEach(f=>{ try{f();}catch(_){} }); unsubs=[]; }
-function rerender(){ if($("#app").style.display!=="none" && CURRENT) go(CURRENT); }
+function rerender(){ try{ if(USER && $("#app").style.display!=="none" && CURRENT && topFor(CURRENT)) go(CURRENT); }catch(e){ console.error(e); } }
 
 /* ---- Escrituras ---- */
 async function cloudPutRecord(section, obj){
