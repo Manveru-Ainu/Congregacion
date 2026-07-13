@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Ayudas ----------
+    function esMiembro(cong) {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/congregaciones/$(cong)/members/$(request.auth.uid));
+    }
+    function miRol(cong) {
+      return get(/databases/$(database)/documents/congregaciones/$(cong)/members/$(request.auth.uid)).data.role;
+    }
+    function esAnciano(cong) {
+      return esMiembro(cong) && miRol(cong) == 'Anciano';
+    }
+    function esDuenoNuevo(cong) {
+      return request.auth != null &&
+             getAfter(/databases/$(database)/documents/congregaciones/$(cong)).data.owner == request.auth.uid;
+    }
+    // A qué menú pertenece cada sección
+    function grupoDe(sec) {
+      return sec.matches('reu_.*')  ? 'reuniones'
+           : sec.matches('disc_.*') ? 'discursos'
+           : sec == 'territorios'   ? 'territorios'
+           : sec == 'anuncios'      ? 'anuncios'
+           : 'calendario';
+    }
+    // Privilegios autorizados por el anciano para ese menú
+    function autorizados(cong, grupo) {
+      return get(/databases/$(database)/documents/congregaciones/$(cong)/meta/general)
+             .data.permsConfig.get(grupo, []);
+    }
+    function puedeEnSeccion(cong, sec) {
+      return esAnciano(cong) ||
+             (esMiembro(cong) && miRol(cong) in autorizados(cong, grupoDe(sec)));
+    }
+
+    match /congregaciones/{cong} {
+      // Crear congregación: solo si el creador queda como dueño (y el código está libre).
+      allow create: if request.auth != null && request.resource.data.owner == request.auth.uid;
+      allow read:   if esMiembro(cong);
+      allow update, delete: if esAnciano(cong);
+
+      // ---------- Usuarios de la congregación ----------
+      match /members/{uid} {
+        // El fundador se registra a sí mismo como Anciano al crear la congregación.
+        allow create: if esAnciano(cong) ||
+                         (uid == request.auth.uid && esDuenoNuevo(cong));
+        allow read:   if esMiembro(cong);
+        allow update, delete: if esAnciano(cong);
+      }
+
+      // ---------- Configuración, permisos y catálogos ----------
+      match /meta/{docId} {
+        allow read:  if esMiembro(cong);
+        allow write: if esAnciano(cong) || esDuenoNuevo(cong);
+      }
+
+      // ---------- Registros ----------
+      match /records/{recId} {
+        allow read:   if esMiembro(cong);
+        allow create: if puedeEnSeccion(cong, request.resource.data.section);
+        allow update: if puedeEnSeccion(cong, request.resource.data.section);
+        allow delete: if puedeEnSeccion(cong, resource.data.section);
+      }
+    }
+
+    // Todo lo demás: bloqueado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -43,6 +43,7 @@ if("serviceWorker" in navigator){ window.addEventListener("load",function(){ nav
     window.FB = { app, auth, db, auth2,
       signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
       doc, getDoc, setDoc, deleteDoc, collection, onSnapshot, writeBatch, serverTimestamp };
+    window.FB_OK = true;
   }catch(e){ window.FB = null; console.error("Firebase no disponible", e); }
   window.dispatchEvent(new Event("fb-ready"));
 </script>
@@ -313,6 +314,7 @@ if("serviceWorker" in navigator){ window.addEventListener("load",function(){ nav
     <button class="btn ghost full" id="li-new" style="margin-top:10px">Crear congregación nueva</button>
     <button class="btn ghost full" id="installBtn" style="display:none;margin-top:10px">Instalar app</button>
     <div class="hint" id="li-hint"></div>
+    <div class="hint" style="margin-top:6px;opacity:.75" id="li-ver">v2 · nube</div>
   </div>
 </section>
 
@@ -781,6 +783,7 @@ function refreshLoginHint(){
   const pf=$("#pass-field"); if(pf) pf.style.display = REQUIRE_PASSWORD ? "block" : "none";
   const cf=$("#code-field"); if(cf) cf.style.display = CLOUD ? "block" : "none";
   const nb=$("#li-new");     if(nb) nb.style.display = CLOUD ? "block" : "none";
+  const vv=$("#li-ver");     if(vv) vv.textContent = CLOUD ? ("v2 · nube " + (window.FB_OK ? "conectada" : "(cargando…)")) : "v2 · local";
   if(CLOUD){
     const last=localStorage.getItem("cca_last_cong");
     if(last && $("#li-code") && !$("#li-code").value) $("#li-code").value=last;
@@ -810,12 +813,16 @@ function memberRef(uid){ const {doc,db}=window.FB; return doc(db,"congregaciones
 
 function cloudErr(e){
   const c=(e&&e.code)||"";
-  if(c==="auth/invalid-credential"||c==="auth/wrong-password"||c==="auth/user-not-found") return "Usuario o contraseña incorrectos.";
+  if(c==="auth/operation-not-allowed") return "Falta activar en Firebase: Authentication > Sign-in method > Correo electrónico/contraseña.";
+  if(c==="auth/unauthorized-domain")   return "Falta autorizar este sitio en Firebase: Authentication > Settings > Dominios autorizados (agrega "+location.hostname+").";
+  if(c==="auth/invalid-credential"||c==="auth/wrong-password"||c==="auth/user-not-found") return "Usuario o contraseña incorrectos (revisa también el código de congregación).";
   if(c==="auth/email-already-in-use") return "Ese usuario ya existe en esta congregación.";
   if(c==="auth/weak-password") return "La contraseña debe tener al menos 6 caracteres.";
+  if(c==="auth/invalid-email") return "El código o el usuario tienen caracteres no válidos (usa solo letras, números y guiones).";
   if(c==="auth/network-request-failed") return "Sin conexión a internet.";
-  if(c==="permission-denied") return "Sin permiso (revisa tu privilegio).";
-  return (e&&e.message) || "Ocurrió un error.";
+  if(c==="permission-denied") return "Permiso denegado: revisa que publicaste las reglas en Firestore (pestaña Reglas).";
+  if(c==="unavailable") return "No se pudo conectar con la base de datos. Revisa tu internet.";
+  return ((e&&e.message) || "Ocurrió un error.") + (c?" ["+c+"]":"");
 }
 
 /* ---- Crear congregación (el creador queda como Anciano) ---- */
@@ -828,13 +835,22 @@ async function createCongregation(){
   const pass=$("#nc-pass").value;
   if(!code||!name||!person||!user||!pass){ $("#nc-err").textContent="Llena todos los campos."; return; }
   if(pass.length<6){ $("#nc-err").textContent="La contraseña debe tener al menos 6 caracteres."; return; }
-  const {auth,db,doc,getDoc,createUserWithEmailAndPassword,writeBatch,serverTimestamp}=window.FB;
+  const {auth,db,doc,getDoc,createUserWithEmailAndPassword,signInWithEmailAndPassword,writeBatch,serverTimestamp}=window.FB;
   $("#nc-err").textContent="Creando…";
   try{
     const exists=await getDoc(doc(db,"congregaciones",code));
-    if(exists.exists()){ $("#nc-err").textContent="Ese código ya existe. Elige otro."; return; }
-    const cred=await createUserWithEmailAndPassword(auth, synthEmail(user,code), pass);
-    const uid=cred.user.uid;
+    if(exists.exists()){ $("#nc-err").textContent="Ese código ya existe. Si es tuyo, entra desde la pantalla anterior."; return; }
+    let uid;
+    try{
+      const cred=await createUserWithEmailAndPassword(auth, synthEmail(user,code), pass);
+      uid=cred.user.uid;
+    }catch(e){
+      if(e && e.code==="auth/email-already-in-use"){
+        // el intento anterior creó la cuenta pero falló al guardar: reusarla
+        const cred=await signInWithEmailAndPassword(auth, synthEmail(user,code), pass);
+        uid=cred.user.uid;
+      } else { throw e; }
+    }
     const batch=writeBatch(db);
     batch.set(doc(db,"congregaciones",code), { nombre:name, owner:uid, creado:serverTimestamp() });
     batch.set(doc(db,"congregaciones",code,"members",uid), { name:person, username:user, role:"Anciano" });
@@ -1882,6 +1898,7 @@ $("#li-user").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#li-pass").
 
 refreshLoginHint();
 applyBranding();
+window.addEventListener("fb-ready", refreshLoginHint);
 
 /* exponer para tests en Node (no afecta navegador) */
 if(typeof module!=="undefined"){ module.exports={perms,canAdd,ROLES}; }
