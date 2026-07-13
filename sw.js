@@ -1,5 +1,5 @@
 /* Service worker — Comunicación y Anuncios */
-const CACHE = "cca-v5";
+const CACHE = "cca-v8";
 const ASSETS = [
   "./",
   "./index.html",

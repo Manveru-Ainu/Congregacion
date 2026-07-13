@@ -18,10 +18,15 @@ if("serviceWorker" in navigator){ window.addEventListener("load",function(){ nav
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged }
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
+           EmailAuthProvider, reauthenticateWithCredential, updatePassword }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, onSnapshot, writeBatch, serverTimestamp }
+  import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, onSnapshot, writeBatch, serverTimestamp, updateDoc, arrayUnion, arrayRemove }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getMessaging, getToken, onMessage, isSupported }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
+  import { getFunctions, httpsCallable }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyC-4ogGeFr0vsmTDXX4MIrtBtCaGy3HUmg",
@@ -42,7 +47,11 @@ if("serviceWorker" in navigator){ window.addEventListener("load",function(){ nav
 
     window.FB = { app, auth, db, auth2,
       signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
-      doc, getDoc, setDoc, deleteDoc, collection, onSnapshot, writeBatch, serverTimestamp };
+      EmailAuthProvider, reauthenticateWithCredential, updatePassword,
+      doc, getDoc, setDoc, deleteDoc, collection, onSnapshot, writeBatch, serverTimestamp,
+      updateDoc, arrayUnion, arrayRemove,
+      getMessaging, getToken, onMessage, isSupported,
+      functions: getFunctions(app), httpsCallable };
     window.FB_OK = true;
   }catch(e){ window.FB = null; console.error("Firebase no disponible", e); }
   window.dispatchEvent(new Event("fb-ready"));
@@ -318,6 +327,40 @@ if("serviceWorker" in navigator){ window.addEventListener("load",function(){ nav
   </div>
 </section>
 
+<!-- ===================== RESTABLECER CONTRASEÑA (anciano) ===================== -->
+<div class="overlay" id="rsov">
+  <div class="modal">
+    <div class="modal-head"><h3>Restablecer contraseña</h3><button class="x" id="rs-close">×</button></div>
+    <div class="modal-body">
+      <p class="meta" style="margin-top:0">Le pondrás una contraseña nueva a <b id="rs-who">—</b>. Entrégasela y pídele que la cambie con el botón de la llave.</p>
+      <div class="field"><label>Nueva contraseña * (mínimo 6 caracteres)</label><input id="rs-new" type="text" placeholder="ej. cong2026"></div>
+      <div class="err" id="rs-err"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" id="rs-cancel">Cancelar</button>
+      <button class="btn accent" id="rs-save">Restablecer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== CAMBIAR CONTRASEÑA ===================== -->
+<div class="overlay" id="pwov">
+  <div class="modal">
+    <div class="modal-head"><h3>Cambiar mi contraseña</h3><button class="x" id="pw-close">×</button></div>
+    <div class="modal-body">
+      <p class="meta" style="margin-top:0">Solo tú conocerás tu nueva contraseña. Si la olvidas, pídele a un anciano que te cree un acceso nuevo.</p>
+      <div class="field"><label>Contraseña actual *</label><input id="pw-old" type="password" placeholder="la que usas hoy"></div>
+      <div class="field"><label>Nueva contraseña * (mínimo 6 caracteres)</label><input id="pw-new" type="password" placeholder="nueva contraseña"></div>
+      <div class="field"><label>Repite la nueva *</label><input id="pw-new2" type="password" placeholder="otra vez"></div>
+      <div class="err" id="pw-err"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" id="pw-cancel">Cancelar</button>
+      <button class="btn accent" id="pw-save">Cambiar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== CREAR CONGREGACIÓN ===================== -->
 <div class="overlay" id="newcong">
   <div class="modal">
@@ -347,6 +390,7 @@ if("serviceWorker" in navigator){ window.addEventListener("load",function(){ nav
     </div>
     <div class="spacer"></div>
     <span class="pill" id="whoRole"></span>
+    <button class="exit" id="pwBtn" title="Cambiar mi contraseña"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.85 12.15 19 4"/><path d="M18 5l2 2"/><path d="M15 8l2 2"/></svg></button>
     <button class="exit" id="logout" title="Salir"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button>
   </header>
 
@@ -646,11 +690,11 @@ const SECTIONS = {
     cols:["fecha","discursante","presidente"]
   },
   disc_ext:{
-    title:"Discurso externo", group:"Discursos", detailView:true, noCal:true, remind:true, discCat:true,
+    title:"Discurso externo", group:"Discursos", detailView:true, noCal:true, remind:true,
     autoRemind:["1 mes antes","2 semanas antes","1 semana antes","1 día antes","El mismo día (7:00 a.m.)","1 hora antes"],
-    desc:"Discursos fuera de la congregación (no aparecen en el calendario). Recordatorios automáticos.",
+    desc:"Discursos fuera de la congregación (no aparecen en el calendario). El discursante recibe los avisos.",
     fields:[
-      {k:"discursante",l:"Discursante",t:"select",dyn:"disc",req:true},
+      {k:"discursante",l:"Discursante (usuario de la app)",t:"select",dyn:"user",req:true},
       {k:"fecha",l:"Fecha",t:"date",req:true},
       {k:"hora",l:"Hora",t:"time"},
       {k:"congregacion",l:"Congregación",t:"text",req:true},
@@ -764,6 +808,7 @@ function badgeFor(key,val){
 const BADGE_FIELDS = new Set(["estado","prioridad","tipo"]);
 const TERR_MID_DEFAULT = "1RBBNN9qO_P3EvbnErFAtkWcZxqhn8TY";
 function terrMid(){ return (DATA && DATA.config && DATA.config.mapId) || TERR_MID_DEFAULT; }
+function userName(id){ const u=(DATA.users||[]).find(x=>x.id===id); return u ? (u.name||u.username) : (id||""); }
 function congName(){ return (DATA && DATA.config && DATA.config.congregacion) || ""; }
 // extrae el "mid" de un enlace de Google My Maps (o acepta el mid directo)
 function parseMid(v){
@@ -915,6 +960,7 @@ async function afterCloudLogin(code, uid, member){
   buildBottomNav();
   goTop("reuniones");
   subscribeCloud();   // al final: si algo falla aquí, el menú ya quedó dibujado
+  initPush();         // pedir permiso y registrar el teléfono para avisos
 }
 
 /* ---- Sincronización en tiempo real ---- */
@@ -998,8 +1044,8 @@ function doLogin(){
   const due = activeReminders().filter(x=>x.status==="Hoy"||x.status==="Vencido").length;
   if(due) toast(`Tienes ${due} recordatorio(s) para hoy o vencidos`);
 }
-function doLogout(){
-  if(CLOUD && window.FB){ unsubscribeCloud(); try{ window.FB.signOut(window.FB.auth); }catch(_){} }
+async function doLogout(){
+  if(CLOUD && window.FB){ await dropToken(); unsubscribeCloud(); try{ window.FB.signOut(window.FB.auth); }catch(_){} }
   CONG=""; USER=null; $("#app").style.display="none"; $("#login").style.display="grid";
   $("#li-user").value=""; $("#li-pass").value=""; refreshLoginHint();
 }
@@ -1127,6 +1173,7 @@ function renderSection(id){
       }
       if(BADGE_FIELDS.has(c)) return `<td>${badgeFor(c,r[c])}</td>`;
       if(fdef && fdef.t==="date") return `<td>${r[c]?fmtDate(r[c]):"—"}</td>`;
+      if(fdef && fdef.dyn==="user") return `<td class="${c===cfg.cols[0]?"cell-strong":""}">${esc(userName(r[c])||"—")}</td>`;
       const strong = (c===cfg.cols[0]);
       const raw = Array.isArray(r[c]) ? r[c].join(", ") : r[c];
       return `<td class="${strong?"cell-strong":""}">${esc(raw||"—")}</td>`;
@@ -1257,6 +1304,13 @@ function fieldHTML(f,val){
   if(f.t==="maps") return `<input id="f-${f.k}" type="url" value="${esc(v)}" placeholder="Pega el enlace de Google Maps (https://...)">`;
   if(f.t==="textarea") return `<textarea id="f-${f.k}" rows="3" placeholder="${esc(f.l)}">${esc(v)}</textarea>`;
   if(f.t==="select"){
+    if(f.dyn==="user"){
+      const us=(DATA.users||[]).slice().sort((a,b)=>String(a.name||a.username).localeCompare(String(b.name||b.username),"es"));
+      if(!us.length) return `<select id="f-${f.k}"><option value="">— Crea usuarios primero —</option></select>`;
+      const opts=['<option value="">— Seleccionar —</option>'].concat(
+        us.map(u=>`<option value="${esc(u.id)}" ${u.id===v?"selected":""}>${esc(u.name||u.username)}</option>`)).join("");
+      return `<select id="f-${f.k}">${opts}</select>`;
+    }
     let source = f.dyn==="terr" ? (DATA.territoriosCatalog||[]) : f.dyn==="disc" ? (DATA.discursantesCatalog||[]) : f.dyn==="grupo" ? grupoOpts() : (f.opts||[]);
     if(f.dyn==="terr" && !source.length){
       return `<select id="f-${f.k}"><option value="">— Agrega territorios en "Lista de territorios" —</option></select>`;
@@ -1574,7 +1628,8 @@ function openDetail(section,id){
     let v=r[f.k]; if(Array.isArray(v)) v=v.join(", ");
     if(v==null||v==="") return "";
     let disp;
-    if(f.t==="maps") disp=`<a href="${esc(v)}" target="_blank" rel="noopener">Abrir en Google Maps</a>`;
+    if(f.dyn==="user") disp=esc(userName(v));
+    else if(f.t==="maps") disp=`<a href="${esc(v)}" target="_blank" rel="noopener">Abrir en Google Maps</a>`;
     else if(f.t==="tel") disp=`<a href="tel:${esc(String(v).replace(/[^\d+]/g,""))}">${esc(v)}</a>`;
     else disp=esc(v);
     return `<div class="dt-row"><div class="dt-k">${esc(f.l)}</div><div class="dt-v">${disp}</div></div>`;
@@ -1712,6 +1767,7 @@ function renderUsers(){
     <td>${badgeFor("rol",u.role)}</td>
     <td><div class="row-actions">
       <button class="btn ghost sm" onclick="openUser('${u.id}')">Editar</button>
+      ${u.id===USER.id?"":`<button class="btn ghost sm" onclick="openReset('${u.id}')">Contraseña</button>`}
       ${u.id===USER.id?"":`<button class="btn danger sm" onclick="delUser('${u.id}')">Eliminar</button>`}
     </div></td></tr>`).join("");
   $("#panel").innerHTML=`<div class="panel-head">
@@ -1905,6 +1961,116 @@ $("#sheet").onclick=e=>{ if(e.target===$("#sheet")) closeSheet(); };
 
 /* login events */
 $("#li-btn").onclick=doLogin;
+
+/* ============================================================
+   NOTIFICACIONES (push) — Fase 2
+   ============================================================ */
+// Pega aquí la "clave web" (Par de claves VAPID) de Firebase:
+// Consola > ⚙ Configuración del proyecto > Cloud Messaging > Configuración web > Generar par de claves
+const VAPID_KEY = "PEGA_AQUI_TU_CLAVE_WEB";
+
+let MSG=null;
+async function initPush(){
+  if(!CLOUD || !fbReady() || !CONG || !USER) return;
+  if(!("Notification" in window) || !("serviceWorker" in navigator)) return;
+  if(VAPID_KEY.indexOf("PEGA_AQUI")===0){ console.warn("Falta la clave VAPID"); return; }
+  try{
+    const {getMessaging,getToken,onMessage,isSupported,app}=window.FB;
+    if(!(await isSupported())) return;
+    if(Notification.permission==="denied") return;
+    if(Notification.permission!=="granted"){
+      const p=await Notification.requestPermission();
+      if(p!=="granted"){ toast("No recibirás avisos hasta permitir las notificaciones"); return; }
+    }
+    const reg=await navigator.serviceWorker.register("firebase-messaging-sw.js");
+    MSG=getMessaging(app);
+    const token=await getToken(MSG,{ vapidKey:VAPID_KEY, serviceWorkerRegistration:reg });
+    if(token) await saveToken(token);
+    onMessage(MSG, payload=>{                       // app abierta: aviso dentro de la app
+      const n=(payload&&payload.notification)||{};
+      toast((n.title||"Aviso")+(n.body?": "+n.body:""));
+      renderReminders();
+    });
+  }catch(e){ console.error("push", e); }
+}
+async function saveToken(token){
+  try{
+    const {updateDoc,arrayUnion}=window.FB;
+    await updateDoc(memberRef(USER.id), { tokens: arrayUnion(token) });
+    localStorage.setItem("cca_token", token);
+  }catch(e){ console.error("token", e); }
+}
+async function dropToken(){
+  const t=localStorage.getItem("cca_token");
+  if(!t || !fbReady() || !CONG || !USER) return;
+  try{ const {updateDoc,arrayRemove}=window.FB; await updateDoc(memberRef(USER.id), { tokens: arrayRemove(t) }); }catch(e){}
+  localStorage.removeItem("cca_token");
+}
+/* Restablecer contraseña de otra persona (solo Anciano) */
+async function resetUserPassword(uid, nueva){
+  const {functions,httpsCallable}=window.FB;
+  const fn=httpsCallable(functions,"resetPassword");
+  await fn({ cong:CONG, uid, nueva });
+}
+function openPw(){ $("#pw-err").textContent=""; $("#pw-old").value=""; $("#pw-new").value=""; $("#pw-new2").value=""; $("#pwov").classList.add("show"); }
+function closePw(){ $("#pwov").classList.remove("show"); }
+async function changeMyPassword(){
+  const oldp=$("#pw-old").value, np=$("#pw-new").value, np2=$("#pw-new2").value;
+  if(!oldp||!np||!np2){ $("#pw-err").textContent="Llena los tres campos."; return; }
+  if(np.length<6){ $("#pw-err").textContent="La nueva debe tener al menos 6 caracteres."; return; }
+  if(np!==np2){ $("#pw-err").textContent="Las nuevas contraseñas no coinciden."; return; }
+  if(np===oldp){ $("#pw-err").textContent="La nueva debe ser distinta a la actual."; return; }
+  if(!CLOUD || !fbReady()){ $("#pw-err").textContent="Sin conexión con la nube. Inténtalo con internet."; return; }
+  const {auth,EmailAuthProvider,reauthenticateWithCredential,updatePassword}=window.FB;
+  const u=auth.currentUser;
+  if(!u){ $("#pw-err").textContent="Vuelve a entrar e inténtalo de nuevo."; return; }
+  $("#pw-err").textContent="Cambiando…";
+  try{
+    await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, oldp));
+    await updatePassword(u, np);
+    closePw(); toast("Contraseña cambiada");
+  }catch(e){
+    const c=(e&&e.code)||"";
+    $("#pw-err").textContent = (c==="auth/invalid-credential"||c==="auth/wrong-password")
+      ? "La contraseña actual no es correcta." : cloudErr(e);
+  }
+}
+$("#pwBtn").onclick=openPw;
+$("#pw-cancel").onclick=closePw;
+$("#pw-close").onclick=closePw;
+$("#pw-save").onclick=changeMyPassword;
+$("#pwov").onclick=e=>{ if(e.target===$("#pwov")) closePw(); };
+
+/* ---- Restablecer contraseña de otra persona (solo Anciano) ---- */
+let resetCtx=null;
+function openReset(uid){
+  if(USER.role!=="Anciano"){ toast("Solo un anciano."); return; }
+  const u=(DATA.users||[]).find(x=>x.id===uid); if(!u) return;
+  resetCtx=uid;
+  $("#rs-who").textContent=u.name||u.username;
+  $("#rs-new").value=""; $("#rs-err").textContent="";
+  $("#rsov").classList.add("show");
+}
+function closeReset(){ $("#rsov").classList.remove("show"); resetCtx=null; }
+async function doReset(){
+  const np=$("#rs-new").value.trim();
+  if(np.length<6){ $("#rs-err").textContent="Debe tener al menos 6 caracteres."; return; }
+  if(!resetCtx){ return; }
+  if(!fbReady()){ $("#rs-err").textContent="Sin conexión con la nube."; return; }
+  $("#rs-err").textContent="Restableciendo…";
+  try{
+    await resetUserPassword(resetCtx, np);
+    closeReset(); toast("Contraseña restablecida");
+  }catch(e){
+    const m=(e&&e.message)||"";
+    $("#rs-err").textContent = /not-found|internal|not exist/i.test(m)
+      ? "Falta desplegar las funciones en Firebase (ver LEEME-PUSH)." : (m||"No se pudo.");
+  }
+}
+$("#rs-cancel").onclick=closeReset;
+$("#rs-close").onclick=closeReset;
+$("#rs-save").onclick=doReset;
+$("#rsov").onclick=e=>{ if(e.target===$("#rsov")) closeReset(); };
 function openNewCong(){ $("#nc-err").textContent=""; $("#newcong").classList.add("show"); }
 function closeNewCong(){ $("#newcong").classList.remove("show"); }
 $("#li-new").onclick=openNewCong;

@@ -1,0 +1,115 @@
+==========================================================
+  FASE 2 — NOTIFICACIONES (con el teléfono bloqueado)
+==========================================================
+
+Ya está todo el código. Faltan 4 pasos tuyos.
+
+----------------------------------------------------------
+PASO 1 — Activar el plan Blaze (y protegerte)
+----------------------------------------------------------
+1. Consola de Firebase > abajo a la izquierda dice "Spark"
+   > "Actualizar" > elige "Blaze".
+2. Vincula una tarjeta. (Si eres elegible, te dan $300 de
+   crédito gratis.)
+3. IMPORTANTE — pon un presupuesto con alerta:
+   Configuración del proyecto > Uso y facturación >
+   Detalles y configuración > Presupuestos > crea uno de
+   $1 USD con aviso por correo.
+
+Recuerda: las notificaciones (FCM) son GRATIS e ILIMITADAS.
+Blaze solo se necesita para poder desplegar las funciones.
+A tu escala, lo esperado es $0/mes.
+
+----------------------------------------------------------
+PASO 2 — Obtener la "clave web" y pegarla
+----------------------------------------------------------
+1. Consola > engrane ⚙ > Configuración del proyecto >
+   pestaña "Cloud Messaging".
+2. En "Configuración web" > "Certificados push web" >
+   "Generar par de claves".
+3. Copia la clave larga que aparece (empieza con "B...").
+4. Abre index.html y busca esta línea:
+
+     const VAPID_KEY = "PEGA_AQUI_TU_CLAVE_WEB";
+
+   Sustituye PEGA_AQUI_TU_CLAVE_WEB por tu clave.
+   (Esa clave es pública, no es un secreto.)
+
+----------------------------------------------------------
+PASO 3 — Desplegar las funciones (el "cartero")
+----------------------------------------------------------
+Necesitas Node.js instalado (https://nodejs.org, versión LTS).
+
+Abre una terminal en la carpeta donde está la carpeta
+"functions" y ejecuta, una por una:
+
+   npm install -g firebase-tools
+   firebase login
+   firebase use congregacion-5205e
+   cd functions
+   npm install
+   cd ..
+   firebase deploy --only functions
+
+La primera vez puede pedirte habilitar APIs: acepta.
+Al terminar debe decir "Deploy complete!".
+
+Si "firebase use" falla, ejecuta primero:
+   firebase init functions
+   (elige el proyecto congregacion-5205e, JavaScript,
+    y NO sobrescribas index.js ni package.json)
+
+Se despliegan 3 funciones:
+ - onRecordCreated ..... avisa al crear una asignación
+ - enviarRecordatorios . cada hora, manda los recordatorios
+ - resetPassword ....... el anciano restablece contraseñas
+
+----------------------------------------------------------
+PASO 4 — Subir a GitHub y actualizar las reglas
+----------------------------------------------------------
+1. Sube al repositorio los archivos nuevos:
+      index.html
+      sw.js
+      firebase-messaging-sw.js   <-- ¡NUEVO! sin este no
+                                     llegan los avisos
+2. Firestore > pestaña "Reglas" > pega el firestore.rules.txt
+   nuevo (cambió: cada quien puede guardar su token) >
+   Publicar.
+
+----------------------------------------------------------
+CÓMO SE USA
+----------------------------------------------------------
+- Al entrar a la app, el navegador pedirá permiso para
+  enviar notificaciones. Hay que ACEPTAR. Si alguien lo
+  rechaza, no recibirá avisos (puede volver a permitirlo
+  desde la configuración del sitio en su navegador).
+
+- QUIÉN RECIBE QUÉ:
+   * Discurso externo -> SOLO a la persona asignada.
+     (Por eso el "Discursante" ahora se elige de la lista
+      de usuarios de la app. Si alguien no tiene usuario,
+      créaselo en Usuarios.)
+   * Reuniones (miércoles, domingo, limpieza), calendario,
+     anuncios, discursos locales y servicio -> A TODOS.
+
+- CUÁNDO LLEGA:
+   * Al crear la asignación (de inmediato).
+   * Y según los recordatorios programados (1 mes antes,
+     1 semana antes, etc.). El revisor corre cada hora.
+
+----------------------------------------------------------
+IMPORTANTE — iPhone
+----------------------------------------------------------
+En iPhone las notificaciones SOLO funcionan si la persona
+INSTALÓ la app en su pantalla de inicio (Safari > Compartir
+> Agregar a pantalla de inicio) y tiene iOS 16.4 o superior.
+Abrirla solo en el navegador NO basta.
+En Android funciona normal.
+
+----------------------------------------------------------
+SI ALGO FALLA
+----------------------------------------------------------
+- No llegan avisos: revisa que subiste firebase-messaging-sw.js,
+  que pegaste la clave VAPID, y que aceptaste el permiso.
+- "Falta desplegar las funciones": no se completó el paso 3.
+- Para ver qué pasó: Consola de Firebase > Funciones > Registros.

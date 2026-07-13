@@ -49,7 +49,12 @@ service cloud.firestore {
         allow create: if esAnciano(cong) ||
                          (uid == request.auth.uid && esDuenoNuevo(cong));
         allow read:   if esMiembro(cong);
-        allow update, delete: if esAnciano(cong);
+        allow delete: if esAnciano(cong);
+        // Un anciano puede editar cualquier miembro.
+        // Cada quien puede guardar/quitar SOLO su token de notificaciones (nada más).
+        allow update: if esAnciano(cong) ||
+                         ( uid == request.auth.uid
+                           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tokens']) );
       }
 
       // ---------- Configuración, permisos y catálogos ----------
