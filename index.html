@@ -324,10 +324,10 @@ if("serviceWorker" in navigator){ window.addEventListener("load",function(){ nav
     <div class="modal-head"><h3>Crear congregación</h3><button class="x" id="nc-close">×</button></div>
     <div class="modal-body">
       <p class="meta" style="margin-top:0">Esto crea una congregación nueva en la nube y te deja como <b>Anciano</b>. Guarda bien estos datos.</p>
-      <div class="field"><label>Código de congregación *</label><input id="nc-code" placeholder="Ej. ameyalco (sin espacios)" autocapitalize="none"></div>
+      <div class="field"><label>Código de congregación * (sin espacios)</label><input id="nc-code" placeholder="Ej. ameyalco" autocapitalize="none"></div>
       <div class="field"><label>Nombre de la congregación *</label><input id="nc-name" placeholder="Ej. Ameyalco"></div>
       <div class="field"><label>Tu nombre *</label><input id="nc-person" placeholder="Tu nombre completo"></div>
-      <div class="field"><label>Tu usuario *</label><input id="nc-user" placeholder="Ej. manveru" autocapitalize="none"></div>
+      <div class="field"><label>Tu usuario * (sin espacios)</label><input id="nc-user" placeholder="Ej. miguel" autocapitalize="none"></div>
       <div class="field"><label>Tu contraseña * (mínimo 6 caracteres)</label><input id="nc-pass" type="password" placeholder="contraseña"></div>
       <div class="err" id="nc-err"></div>
     </div>
@@ -805,7 +805,14 @@ function refreshLoginHint(){
 let unsubs = [];                    // cancelar suscripciones al salir
 
 function fbReady(){ return CLOUD && window.FB; }
-function synthEmail(user, code){ return `${String(user).trim().toLowerCase()}@${String(code).trim().toLowerCase()}.congregacion.app`; }
+// limpia usuario/código: sin espacios, sin acentos, solo letras, números, punto, guion
+function slug(v){
+  return String(v||"").trim().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/\s+/g,"")
+    .replace(/[^a-z0-9._-]/g,"");
+}
+function synthEmail(user, code){ return `${slug(user)}@${slug(code)}.congregacion.app`; }
 function congRef(){ const {doc,db}=window.FB; return doc(db,"congregaciones",CONG); }
 function metaRef(){ const {doc,db}=window.FB; return doc(db,"congregaciones",CONG,"meta","general"); }
 function recRef(id){ const {doc,db}=window.FB; return doc(db,"congregaciones",CONG,"records",id); }
@@ -828,29 +835,37 @@ function cloudErr(e){
 /* ---- Crear congregación (el creador queda como Anciano) ---- */
 async function createCongregation(){
   if(!fbReady()){ $("#nc-err").textContent="La nube no está disponible."; return; }
-  const code=$("#nc-code").value.trim().toLowerCase().replace(/\s+/g,"-");
+  const code=slug($("#nc-code").value);
   const name=$("#nc-name").value.trim();
   const person=$("#nc-person").value.trim();
-  const user=$("#nc-user").value.trim().toLowerCase();
+  const user=slug($("#nc-user").value);
   const pass=$("#nc-pass").value;
   if(!code||!name||!person||!user||!pass){ $("#nc-err").textContent="Llena todos los campos."; return; }
   if(pass.length<6){ $("#nc-err").textContent="La contraseña debe tener al menos 6 caracteres."; return; }
-  const {auth,db,doc,getDoc,createUserWithEmailAndPassword,signInWithEmailAndPassword,writeBatch,serverTimestamp}=window.FB;
+  // reflejar la versión limpia (sin espacios ni acentos)
+  $("#nc-code").value=code; $("#nc-user").value=user;
+  const {auth,db,doc,getDoc,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,writeBatch,serverTimestamp}=window.FB;
   $("#nc-err").textContent="Creando…";
   try{
-    const exists=await getDoc(doc(db,"congregaciones",code));
-    if(exists.exists()){ $("#nc-err").textContent="Ese código ya existe. Si es tuyo, entra desde la pantalla anterior."; return; }
+    // 1) Primero autenticarse (sin sesión, Firestore no deja leer nada)
     let uid;
     try{
       const cred=await createUserWithEmailAndPassword(auth, synthEmail(user,code), pass);
       uid=cred.user.uid;
     }catch(e){
       if(e && e.code==="auth/email-already-in-use"){
-        // el intento anterior creó la cuenta pero falló al guardar: reusarla
-        const cred=await signInWithEmailAndPassword(auth, synthEmail(user,code), pass);
+        const cred=await signInWithEmailAndPassword(auth, synthEmail(user,code), pass); // reintento
         uid=cred.user.uid;
       } else { throw e; }
     }
+    // 2) Ya con sesión, revisar si el código está libre
+    const exists=await getDoc(doc(db,"congregaciones",code));
+    if(exists.exists()){
+      $("#nc-err").textContent="Ese código ya existe. Si es tuyo, entra desde la pantalla anterior.";
+      try{ await signOut(auth); }catch(_){}
+      return;
+    }
+    // 3) Crear congregación + tu cuenta de anciano + configuración inicial
     const batch=writeBatch(db);
     batch.set(doc(db,"congregaciones",code), { nombre:name, owner:uid, creado:serverTimestamp() });
     batch.set(doc(db,"congregaciones",code,"members",uid), { name:person, username:user, role:"Anciano" });
@@ -869,8 +884,8 @@ async function createCongregation(){
 
 /* ---- Entrar ---- */
 async function cloudLogin(){
-  const code=$("#li-code").value.trim().toLowerCase();
-  const user=$("#li-user").value.trim().toLowerCase();
+  const code=slug($("#li-code").value);
+  const user=slug($("#li-user").value);
   const pass=$("#li-pass").value;
   if(!code||!user||!pass){ $("#li-err").textContent="Escribe código, usuario y contraseña."; return; }
   const {auth,signInWithEmailAndPassword,getDoc}=window.FB;
@@ -950,8 +965,9 @@ async function cloudPutMeta(){
 }
 async function cloudCreateUser(name, username, password, role){
   const {auth2,createUserWithEmailAndPassword,signOut,setDoc}=window.FB;
-  const cred=await createUserWithEmailAndPassword(auth2, synthEmail(username,CONG), password);
-  await setDoc(memberRef(cred.user.uid), { name, username:String(username).toLowerCase(), role });
+  const u=slug(username);
+  const cred=await createUserWithEmailAndPassword(auth2, synthEmail(u,CONG), password);
+  await setDoc(memberRef(cred.user.uid), { name, username:u, role });
   try{ await signOut(auth2); }catch(_){}
 }
 async function cloudUpdateMember(uid, data){

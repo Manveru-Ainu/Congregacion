@@ -38,7 +38,9 @@ service cloud.firestore {
     match /congregaciones/{cong} {
       // Crear congregación: solo si el creador queda como dueño (y el código está libre).
       allow create: if request.auth != null && request.resource.data.owner == request.auth.uid;
-      allow read:   if esMiembro(cong);
+      // Consultar si el código existe: cualquiera que ya inició sesión (solo el documento suelto).
+      allow get:    if request.auth != null;
+      allow list:   if esMiembro(cong);
       allow update, delete: if esAnciano(cong);
 
       // ---------- Usuarios de la congregación ----------
