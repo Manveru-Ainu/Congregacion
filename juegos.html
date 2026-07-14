@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#6f54a8">
+<title>Portal de Juegos</title>
+<style>
+  :root{
+    --primary:#6f54a8; --primary-d:#4a3d86; --primary-soft:#efeaf9;
+    --ink:#1f1a2b; --muted:#6d6580; --line:#e6e1f0; --bg:#faf9fd;
+    --gold:#c9a227;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}
+  header{background:var(--primary);color:#fff;padding:22px 18px;}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 18px}
+  header .wrap{display:flex;align-items:center;gap:14px;padding:0}
+  .dot{width:44px;height:44px;border-radius:12px;background:#fff;color:var(--primary);
+       display:grid;place-items:center;font-weight:800;letter-spacing:.5px;flex:none}
+  header h1{margin:0;font-size:20px;font-weight:700}
+  header p{margin:2px 0 0;font-size:13px;opacity:.9}
+
+  main{padding:26px 0 60px}
+  h2{font-size:17px;margin:0 0 4px;color:var(--primary-d)}
+  .sub{margin:0 0 20px;color:var(--muted);font-size:14px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;
+        display:flex;flex-direction:column;box-shadow:0 2px 8px rgba(30,15,60,.05);
+        transition:transform .15s ease, box-shadow .15s ease}
+  .card:hover{transform:translateY(-3px);box-shadow:0 8px 22px rgba(30,15,60,.12)}
+  .thumb{height:110px;background:linear-gradient(135deg,var(--primary),#8f77c9);
+         display:grid;place-items:center;color:#fff;font-size:34px}
+  .card .bd{padding:16px;display:flex;flex-direction:column;gap:6px;flex:1}
+  .card b{font-size:16px;color:var(--primary-d)}
+  .card span{font-size:13px;color:var(--muted);line-height:1.45}
+  .card .go{margin:0 16px 16px;display:block;text-align:center;text-decoration:none;
+            background:var(--primary);color:#fff;border-radius:10px;padding:11px 14px;
+            font-weight:650;font-size:14px}
+  .card .go:hover{background:var(--primary-d)}
+  .soon{background:#eeeaf4;color:#6d6580;pointer-events:none}
+
+  footer{border-top:1px solid var(--line);margin-top:40px;padding:20px 0;color:var(--muted);font-size:12px;text-align:center}
+  @media(max-width:520px){ .thumb{height:92px;font-size:28px} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="dot">CA</div>
+    <div>
+      <h1>Portal de Juegos</h1>
+      <p>Juegos bíblicos y educativos</p>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <h2>Disponibles</h2>
+  <p class="sub">Toca un juego para abrirlo. Funcionan en celular y en computadora.</p>
+
+  <div class="grid" id="grid">
+    <!-- ================== JUEGO 1 ==================
+         Cambia el enlace href por la dirección real de tu juego -->
+    <div class="card">
+      <div class="thumb">🌍</div>
+      <div class="bd">
+        <b>Turista Mundial en Tiempos Bíblicos</b>
+        <span>Recorre 40 casillas por las tierras bíblicas, responde preguntas y adquiere territorios. Con modo en línea.</span>
+      </div>
+      <a class="go" href="PON_AQUI_EL_ENLACE_DEL_JUEGO" target="_blank" rel="noopener">Jugar</a>
+    </div>
+
+    <!-- ================== PRÓXIMOS JUEGOS ==================
+         Copia este bloque y cámbiale el nombre, la descripción y el enlace -->
+    <div class="card">
+      <div class="thumb">🧩</div>
+      <div class="bd">
+        <b>Próximo juego</b>
+        <span>Aquí irá el siguiente juego que crees.</span>
+      </div>
+      <a class="go soon" href="#">Próximamente</a>
+    </div>
+
+    <div class="card">
+      <div class="thumb">📖</div>
+      <div class="bd">
+        <b>Próximo juego</b>
+        <span>Aquí irá otro juego más.</span>
+      </div>
+      <a class="go soon" href="#">Próximamente</a>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Portal de Juegos · hecho para la congregación
+</footer>
+
+</body>
+</html>

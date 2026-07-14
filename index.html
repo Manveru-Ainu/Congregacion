@@ -326,7 +326,7 @@ if("serviceWorker" in navigator){ window.addEventListener("load",function(){ nav
     <div class="err" id="li-err"></div>
     <button class="btn full" id="li-btn">Entrar</button>
     <button class="btn ghost full" id="li-new" style="margin-top:10px">Crear congregación nueva</button>
-    <button class="btn ghost full" id="installBtn" style="display:none;margin-top:10px">Instalar app</button>
+    <button class="btn ghost full" id="installBtn" style="margin-top:10px">Instalar app en este dispositivo</button>
     <div class="hint" id="li-hint"></div>
     <div class="hint" style="margin-top:6px;opacity:.75" id="li-ver">v2 · nube</div>
   </div>
@@ -363,6 +363,15 @@ if("serviceWorker" in navigator){ window.addEventListener("load",function(){ nav
       <button class="btn ghost" id="pw-cancel">Cancelar</button>
       <button class="btn accent" id="pw-save">Cambiar</button>
     </div>
+  </div>
+</div>
+
+<!-- ===================== CÓMO INSTALAR ===================== -->
+<div class="overlay" id="instov">
+  <div class="modal">
+    <div class="modal-head"><h3>Instalar la app</h3><button class="x" id="ins-close">×</button></div>
+    <div class="modal-body" id="ins-body"></div>
+    <div class="modal-foot"><button class="btn accent" id="ins-ok">Entendido</button></div>
   </div>
 </div>
 
@@ -1957,236 +1966,75 @@ $("#logout").onclick=doLogout;
 
 /* instalar como app (PWA) */
 let deferredInstall=null;
-window.addEventListener("beforeinstallprompt",function(e){ e.preventDefault(); deferredInstall=e; const b=$("#installBtn"); if(b) b.style.display="block"; });
-window.addEventListener("appinstalled",function(){ deferredInstall=null; const b=$("#installBtn"); if(b) b.style.display="none"; toast("App instalada"); });
-(function(){ const b=$("#installBtn"); if(!b) return; b.onclick=async function(){ if(!deferredInstall){ toast("En el menú del navegador: \u201CInstalar app\u201D / \u201CAgregar a inicio\u201D"); return; } deferredInstall.prompt(); try{ await deferredInstall.userChoice; }catch(_){ } deferredInstall=null; b.style.display="none"; }; })();
+window.addEventListener("beforeinstallprompt",function(e){ e.preventDefault(); deferredInstall=e; refreshInstallBtn(); });
+window.addEventListener("appinstalled",function(){ deferredInstall=null; refreshInstallBtn(); toast("App instalada"); });
 
-/* importar: archivo o texto pegado */$("#impfile").onchange=function(){ const f=this.files&&this.files[0]; const s=importSection; if(f&&s){ closeImport(); readImportFile(f,s); } this.value=""; };
-$("#imp-do").onclick=()=>{ if(!importSection) return; const t=$("#imp-text").value.trim(); if(!t){ toast("Pega datos o elige un archivo"); return; } const s=importSection; closeImport(); importRows(s, parseCSV(t)); };
-$("#imp-cancel").onclick=closeImport;
-$("#imp-close").onclick=closeImport;
-$("#importov").onclick=e=>{ if(e.target===$("#importov")) closeImport(); };
+function yaInstalada(){
+  return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone===true;
+}
+function refreshInstallBtn(){
+  const b=$("#installBtn"); if(!b) return;
+  b.style.display = yaInstalada() ? "none" : "block";
+}
+function comoInstalar(){
+  const ua=navigator.userAgent||"";
+  const esIOS = /iPhone|iPad|iPod/i.test(ua);
+  const esAndroid = /Android/i.test(ua);
+  const esChrome = /Chrome|CriOS|Edg/i.test(ua) && !/OPR|SamsungBrowser|HuaweiBrowser|MiuiBrowser|Firefox|FxiOS/i.test(ua);
+  const esSafari = /Safari/i.test(ua) && !/Chrome|CriOS|Android/i.test(ua);
 
-/* lista (catálogo) de territorios */
-let catKind="terr";
-function catArr(kind){ if(kind==="disc"){ DATA.discursantesCatalog=DATA.discursantesCatalog||[]; return DATA.discursantesCatalog; } DATA.territoriosCatalog=DATA.territoriosCatalog||[]; return DATA.territoriosCatalog; }
-function openCatalog(kind){
-  if(USER.role!=="Anciano"){ toast("Solo un anciano edita las listas."); return; }
-  catKind=kind;
-  $("#tc-h").textContent   = kind==="disc" ? "Lista de discursantes" : "Lista de territorios";
-  $("#tc-hint").textContent= kind==="disc" ? "Agrega los discursantes. Podrás elegirlos al programar un discurso externo." : "Agrega los territorios de tu mapa. Luego podrás elegirlos al asignar.";
-  $("#tc-label").textContent=kind==="disc" ? "Agregar discursante (nombre)" : "Agregar territorio (número o nombre)";
-  $("#tc-input").placeholder=kind==="disc" ? "Ej. Hno. Pérez" : "Ej. 12  o  Ameyalco Centro";
-  $("#tc-range").style.display = kind==="disc" ? "none" : "block";
-  renderCatalog(); $("#terrcat").classList.add("show");
+  if(esIOS){
+    return `<p><b>En iPhone o iPad:</b></p>
+      <ol style="padding-left:18px;line-height:1.7">
+        <li>Abre esta página en <b>Safari</b> (no en Chrome).</li>
+        <li>Toca el botón <b>Compartir</b> (el cuadro con la flecha hacia arriba).</li>
+        <li>Baja y toca <b>"Agregar a pantalla de inicio"</b>.</li>
+        <li>Toca <b>Agregar</b>.</li>
+      </ol>
+      <p class="meta">Importante: en iPhone las notificaciones solo funcionan si instalas la app así.</p>`;
+  }
+  if(esAndroid && !esChrome){
+    return `<p><b>Tu navegador no permite instalar la app.</b></p>
+      <ol style="padding-left:18px;line-height:1.7">
+        <li>Copia esta dirección: <b>${esc(location.href)}</b></li>
+        <li>Ábrela en <b>Google Chrome</b>.</li>
+        <li>Toca el menú <b>⋮</b> (arriba a la derecha).</li>
+        <li>Elige <b>"Instalar aplicación"</b> o <b>"Agregar a pantalla de inicio"</b>.</li>
+      </ol>
+      <p class="meta">Con Chrome también llegan las notificaciones.</p>`;
+  }
+  if(esAndroid){
+    return `<p><b>En Android (Chrome):</b></p>
+      <ol style="padding-left:18px;line-height:1.7">
+        <li>Toca el menú <b>⋮</b> (arriba a la derecha).</li>
+        <li>Elige <b>"Instalar aplicación"</b> o <b>"Agregar a pantalla de inicio"</b>.</li>
+        <li>Confirma con <b>Instalar</b>.</li>
+      </ol>`;
+  }
+  return `<p><b>En computadora (Chrome o Edge):</b></p>
+    <ol style="padding-left:18px;line-height:1.7">
+      <li>Busca el ícono de <b>instalar</b> en la barra de direcciones (una pantalla con una flecha).</li>
+      <li>O abre el menú <b>⋮</b> y elige <b>"Instalar Comunicación y Anuncios"</b>.</li>
+    </ol>`;
 }
-function openTerrCatalog(){ openCatalog("terr"); }
-function openDiscCatalog(){ openCatalog("disc"); }
-function closeTerrCatalog(){ $("#terrcat").classList.remove("show"); renderSection(CURRENT); }
-function sortCat(){ catArr(catKind).sort((a,b)=>String(a).localeCompare(String(b),"es",{numeric:catKind!=="disc",sensitivity:"base"})); }
-function renderCatalog(){
-  const list=catArr(catKind);
-  $("#tc-list").innerHTML = list.length
-    ? list.map((t,i)=>`<span class="chip">${esc(t)} <button onclick="delTerr(${i})" aria-label="quitar">×</button></span>`).join("")
-    : `<p class="meta">Aún no hay elementos en la lista.</p>`;
-}
-function addTerr(){
-  const el=$("#tc-input"); const v=el.value.trim(); if(!v) return;
-  const arr=catArr(catKind);
-  if(arr.includes(v)){ toast("Ya está en la lista"); el.value=""; return; }
-  arr.push(v); sortCat(); save(DATA); el.value=""; renderCatalog();
-}
-function addTerrRange(){
-  const a=parseInt($("#tc-from").value,10), b=parseInt($("#tc-to").value,10);
-  if(isNaN(a)||isNaN(b)||b<a){ toast("Rango no válido"); return; }
-  if(b-a>500){ toast("Rango demasiado grande"); return; }
-  const arr=catArr(catKind);
-  for(let i=a;i<=b;i++){ const s=String(i); if(!arr.includes(s)) arr.push(s); }
-  sortCat(); save(DATA); $("#tc-from").value=""; $("#tc-to").value=""; renderCatalog();
-}
-function delTerr(i){ catArr(catKind).splice(i,1); save(DATA); renderCatalog(); }
-$("#tc-add").onclick=addTerr;
-$("#tc-input").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); addTerr(); } });
-$("#tc-addrange").onclick=addTerrRange;
-$("#tc-close").onclick=closeTerrCatalog;
-$("#tc-done").onclick=closeTerrCatalog;
-$("#terrcat").onclick=e=>{ if(e.target===$("#terrcat")) closeTerrCatalog(); };
-$("#dt-close").onclick=closeDetail;
-$("#detailov").onclick=e=>{ if(e.target===$("#detailov")) closeDetail(); };
-$("#map-close").onclick=closeMapModal;
-$("#mapov").onclick=e=>{ if(e.target===$("#mapov")) closeMapModal(); };
-$("#day-close").onclick=closeDay;
-$("#day-done").onclick=closeDay;
-$("#dayov").onclick=e=>{ if(e.target===$("#dayov")) closeDay(); };
+function openInstall(){ $("#ins-body").innerHTML=comoInstalar(); $("#instov").classList.add("show"); }
+function closeInstall(){ $("#instov").classList.remove("show"); }
+$("#ins-close").onclick=closeInstall;
+$("#ins-ok").onclick=closeInstall;
+$("#instov").onclick=e=>{ if(e.target===$("#instov")) closeInstall(); };
 
-/* confirmación propia (el confirm() nativo no funciona en el visor de la app) */
-function uiConfirm(msg){
-  return new Promise(res=>{
-    $("#cf-msg").textContent=msg;
-    $("#confirm").classList.add("show");
-    const done=v=>{ $("#confirm").classList.remove("show"); $("#cf-yes").onclick=null; $("#cf-no").onclick=null; $("#confirm").onclick=null; res(v); };
-    $("#cf-yes").onclick=()=>done(true);
-    $("#cf-no").onclick=()=>done(false);
-    $("#confirm").onclick=e=>{ if(e.target===$("#confirm")) done(false); };
-  });
-}
-
-/* hoja de acciones (editar / eliminar) */
-let rowCtx=null;
-function openRowActions(section,id){
-  const ca=canAssign(section, USER.role);
-  const r=(DATA.sections[section]||[]).find(x=>x.id===id);
-  const att = hasAttach(section,r);
-  const canDone = false;
-  if(!ca && !att && !canDone) return;
-  rowCtx={section,id};
-  $("#sheet-view").style.display = att?"block":"none";
-  const dbtn=$("#sheet-done");
-  if(canDone){ dbtn.style.display="block"; dbtn.textContent = (r&&r.estado==="Hecho")?"Marcar como pendiente":"Marcar como hecho"; }
-  else dbtn.style.display="none";
-  $("#sheet-edit").style.display = ca?"block":"none";
-  $("#sheet-del").style.display = ca?"block":"none";
-  $("#sheet").classList.add("show");
-}
-function toggleTerrDone(section,id){
-  if(!canAdd(section,USER.role)){ toast("Sin permiso"); return; }
-  const arr=DATA.sections[section]; const i=arr.findIndex(x=>x.id===id); if(i<0) return;
-  arr[i].estado = arr[i].estado==="Hecho" ? "Pendiente" : "Hecho";
-  save(DATA); toast(arr[i].estado==="Hecho"?"Marcado como hecho":"Marcado como pendiente"); go(CURRENT);
-}
-function closeSheet(){ $("#sheet").classList.remove("show"); rowCtx=null; }
-$("#sheet-view").onclick=()=>{ if(!rowCtx) return; const c=rowCtx; closeSheet(); openAttach(c.section,c.id); };
-$("#sheet-done").onclick=()=>{ if(!rowCtx) return; const c=rowCtx; closeSheet(); toggleTerrDone(c.section,c.id); };
-$("#sheet-edit").onclick=()=>{ if(!rowCtx) return; const c=rowCtx; closeSheet(); openForm(c.section,c.id); };
-$("#sheet-del").onclick=()=>{ if(!rowCtx) return; const c=rowCtx; closeSheet(); delRecord(c.section,c.id); };
-$("#sheet-cancel").onclick=closeSheet;
-$("#sheet").onclick=e=>{ if(e.target===$("#sheet")) closeSheet(); };
-
-/* login events */
-$("#li-btn").onclick=doLogin;
-
-/* ============================================================
-   NOTIFICACIONES (push) — Fase 2
-   ============================================================ */
-// Pega aquí la "clave web" (Par de claves VAPID) de Firebase:
-// Consola > ⚙ Configuración del proyecto > Cloud Messaging > Configuración web > Generar par de claves
-const VAPID_KEY = "BDBtBDjN_Ci8VK5g1Kvb5kPH8YkTiD1AKkgxaf7DlCP0pnb_sPpwHnbZbA0wfRjr58zim5BbS_CUOa71MK4HDj0";
-
-let MSG=null;
-async function initPush(){
-  if(!CLOUD || !fbReady() || !CONG || !USER) return;
-  if(!("Notification" in window) || !("serviceWorker" in navigator)) return;
-  if(VAPID_KEY.indexOf("PEGA_AQUI")===0){ console.warn("Falta la clave VAPID"); return; }
-  try{
-    const {getMessaging,getToken,onMessage,isSupported,app}=window.FB;
-    if(!(await isSupported())) return;
-    if(Notification.permission==="denied") return;
-    if(Notification.permission!=="granted"){
-      const p=await Notification.requestPermission();
-      if(p!=="granted"){ toast("No recibirás avisos hasta permitir las notificaciones"); return; }
+(function(){
+  const b=$("#installBtn"); if(!b) return;
+  b.onclick=async function(){
+    if(deferredInstall){
+      deferredInstall.prompt();
+      try{ await deferredInstall.userChoice; }catch(_){}
+      deferredInstall=null; refreshInstallBtn(); return;
     }
-    const reg=await navigator.serviceWorker.register("firebase-messaging-sw.js");
-    MSG=getMessaging(app);
-    const token=await getToken(MSG,{ vapidKey:VAPID_KEY, serviceWorkerRegistration:reg });
-    if(token) await saveToken(token);
-    onMessage(MSG, payload=>{                       // app abierta: aviso dentro de la app
-      const n=(payload&&payload.notification)||{};
-      toast((n.title||"Aviso")+(n.body?": "+n.body:""));
-      renderReminders();
-    });
-  }catch(e){ console.error("push", e); }
-}
-async function saveToken(token){
-  try{
-    const {updateDoc,arrayUnion}=window.FB;
-    await updateDoc(memberRef(USER.id), { tokens: arrayUnion(token) });
-    localStorage.setItem("cca_token", token);
-  }catch(e){ console.error("token", e); }
-}
-async function dropToken(){
-  const t=localStorage.getItem("cca_token");
-  if(!t || !fbReady() || !CONG || !USER) return;
-  try{ const {updateDoc,arrayRemove}=window.FB; await updateDoc(memberRef(USER.id), { tokens: arrayRemove(t) }); }catch(e){}
-  localStorage.removeItem("cca_token");
-}
-/* Restablecer contraseña de otra persona (solo Anciano) */
-async function resetUserPassword(uid, nueva){
-  const {functions,httpsCallable}=window.FB;
-  const fn=httpsCallable(functions,"resetPassword");
-  await fn({ cong:CONG, uid, nueva });
-}
-function openPw(){ $("#pw-err").textContent=""; $("#pw-old").value=""; $("#pw-new").value=""; $("#pw-new2").value=""; $("#pwov").classList.add("show"); }
-function closePw(){ $("#pwov").classList.remove("show"); }
-async function changeMyPassword(){
-  const oldp=$("#pw-old").value, np=$("#pw-new").value, np2=$("#pw-new2").value;
-  if(!oldp||!np||!np2){ $("#pw-err").textContent="Llena los tres campos."; return; }
-  if(np.length<6){ $("#pw-err").textContent="La nueva debe tener al menos 6 caracteres."; return; }
-  if(np!==np2){ $("#pw-err").textContent="Las nuevas contraseñas no coinciden."; return; }
-  if(np===oldp){ $("#pw-err").textContent="La nueva debe ser distinta a la actual."; return; }
-  if(!CLOUD || !fbReady()){ $("#pw-err").textContent="Sin conexión con la nube. Inténtalo con internet."; return; }
-  const {auth,EmailAuthProvider,reauthenticateWithCredential,updatePassword}=window.FB;
-  const u=auth.currentUser;
-  if(!u){ $("#pw-err").textContent="Vuelve a entrar e inténtalo de nuevo."; return; }
-  $("#pw-err").textContent="Cambiando…";
-  try{
-    await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, oldp));
-    await updatePassword(u, np);
-    closePw(); toast("Contraseña cambiada");
-  }catch(e){
-    const c=(e&&e.code)||"";
-    $("#pw-err").textContent = (c==="auth/invalid-credential"||c==="auth/wrong-password")
-      ? "La contraseña actual no es correcta." : cloudErr(e);
-  }
-}
-$("#pwBtn").onclick=openPw;
-$("#pw-cancel").onclick=closePw;
-$("#pw-close").onclick=closePw;
-$("#pw-save").onclick=changeMyPassword;
-$("#pwov").onclick=e=>{ if(e.target===$("#pwov")) closePw(); };
-
-/* ---- Restablecer contraseña de otra persona (solo Anciano) ---- */
-let resetCtx=null;
-function openReset(uid){
-  if(USER.role!=="Anciano"){ toast("Solo un anciano."); return; }
-  const u=(DATA.users||[]).find(x=>x.id===uid); if(!u) return;
-  resetCtx=uid;
-  $("#rs-who").textContent=u.name||u.username;
-  $("#rs-new").value=""; $("#rs-err").textContent="";
-  $("#rsov").classList.add("show");
-}
-function closeReset(){ $("#rsov").classList.remove("show"); resetCtx=null; }
-async function doReset(){
-  const np=$("#rs-new").value.trim();
-  if(np.length<6){ $("#rs-err").textContent="Debe tener al menos 6 caracteres."; return; }
-  if(!resetCtx){ return; }
-  if(!fbReady()){ $("#rs-err").textContent="Sin conexión con la nube."; return; }
-  $("#rs-err").textContent="Restableciendo…";
-  try{
-    await resetUserPassword(resetCtx, np);
-    closeReset(); toast("Contraseña restablecida");
-  }catch(e){
-    const m=(e&&e.message)||"";
-    $("#rs-err").textContent = /not-found|internal|not exist/i.test(m)
-      ? "Falta desplegar las funciones en Firebase (ver LEEME-PUSH)." : (m||"No se pudo.");
-  }
-}
-$("#rs-cancel").onclick=closeReset;
-$("#rs-close").onclick=closeReset;
-$("#rs-save").onclick=doReset;
-$("#rsov").onclick=e=>{ if(e.target===$("#rsov")) closeReset(); };
-function openNewCong(){ $("#nc-err").textContent=""; $("#newcong").classList.add("show"); }
-function closeNewCong(){ $("#newcong").classList.remove("show"); }
-$("#li-new").onclick=openNewCong;
-$("#nc-cancel").onclick=closeNewCong;
-$("#nc-close").onclick=closeNewCong;
-$("#nc-save").onclick=createCongregation;
-$("#newcong").onclick=e=>{ if(e.target===$("#newcong")) closeNewCong(); };
-$("#li-pass").addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
-$("#li-user").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#li-pass").focus(); });
-
-refreshLoginHint();
-applyBranding();
-window.addEventListener("fb-ready", refreshLoginHint);
+    openInstall();   // el navegador no ofrece instalar: explicamos cómo
+  };
+  refreshInstallBtn();
+})();
 
 /* exponer para tests en Node (no afecta navegador) */
 if(typeof module!=="undefined"){ module.exports={perms,canAdd,ROLES}; }
