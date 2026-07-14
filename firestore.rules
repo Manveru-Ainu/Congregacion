@@ -23,6 +23,7 @@ service cloud.firestore {
            : sec.matches('disc_.*') ? 'discursos'
            : sec == 'territorios'   ? 'territorios'
            : sec == 'anuncios'      ? 'anuncios'
+           : sec == 'juegos'        ? 'juegos'
            : 'calendario';
     }
     // Privilegios autorizados por el anciano para ese menú
