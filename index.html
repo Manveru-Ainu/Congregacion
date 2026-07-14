@@ -1737,11 +1737,47 @@ function renderConfig(){
       <button class="btn accent" id="cf-save">Guardar configuración</button>
     </div>
     <div class="card" style="padding:16px;margin-top:12px">
+      <div class="board-date">Notificaciones</div>
+      <p class="meta" style="margin:0 0 10px" id="cf-notif">—</p>
+      <button class="btn ghost" id="cf-test">Probar notificación</button>
+    </div>
+    <div class="card" style="padding:16px;margin-top:12px">
       <div class="board-date">Territorios</div>
       <p class="meta" style="margin:0 0 10px">La lista de territorios también es propia de cada congregación.</p>
       <button class="btn ghost" onclick="openTerrCatalog()">Editar lista de territorios</button>
     </div>`;
   $("#cf-save").onclick=saveConfig;
+  $("#cf-test").onclick=probarNotificacion;
+  mostrarEstadoNotif();
+}
+function mostrarEstadoNotif(){
+  const el=$("#cf-notif"); if(!el) return;
+  const perm = ("Notification" in window) ? Notification.permission : "no disponible";
+  const tok  = localStorage.getItem("cca_token");
+  const txt = perm==="granted"
+    ? (tok ? "Permiso concedido y este dispositivo está registrado." : "Permiso concedido, pero este dispositivo aún no se registra. Recarga la app.")
+    : perm==="denied"
+      ? "Bloqueaste las notificaciones. Actívalas en el candado 🔒 de la barra de direcciones y recarga."
+      : "Aún no has dado permiso. Recarga la app y acepta.";
+  el.textContent = txt;
+}
+async function probarNotificacion(){
+  if(!("Notification" in window)){ toast("Este dispositivo no soporta notificaciones"); return; }
+  if(Notification.permission!=="granted"){
+    const p=await Notification.requestPermission();
+    if(p!=="granted"){ toast("No diste permiso"); mostrarEstadoNotif(); return; }
+    await initPush();
+  }
+  try{
+    const reg=await navigator.serviceWorker.getRegistration("firebase-messaging-sw.js")
+            || await navigator.serviceWorker.register("firebase-messaging-sw.js");
+    await reg.showNotification("Prueba de notificación", {
+      body:"Si ves esto, tu dispositivo puede mostrar avisos.",
+      icon:"icon-192.png", badge:"icon-192.png"
+    });
+    toast("Enviada. Revisa tus notificaciones.");
+  }catch(e){ toast("No se pudo mostrar: "+(e&&e.message||"")); }
+  mostrarEstadoNotif();
 }
 function saveConfig(){
   DATA.config = DATA.config||{};
