@@ -910,7 +910,11 @@ function cloudErr(e){
 
 /* ---- Crear congregación (el creador queda como Anciano) ---- */
 async function createCongregation(){
-  if(!fbReady()){ $("#nc-err").textContent="La nube no está disponible."; return; }
+  if(!window.FB){
+    $("#nc-err").textContent="Conectando…";
+    await esperarNube(6000);
+    if(!window.FB){ $("#nc-err").textContent="No se pudo conectar con el servidor. Revisa tu internet y vuelve a intentar."; return; }
+  }
   const code=slug($("#nc-code").value);
   const name=$("#nc-name").value.trim();
   const person=$("#nc-person").value.trim();
@@ -959,11 +963,29 @@ async function createCongregation(){
 }
 
 /* ---- Entrar ---- */
+/* Espera a que el SDK de Firebase termine de cargar (hasta 8 segundos) */
+function esperarNube(ms){
+  return new Promise(function(res){
+    if(window.FB){ res(true); return; }
+    let listo=false;
+    const fin=function(){ if(!listo){ listo=true; res(!!window.FB); } };
+    window.addEventListener("fb-ready", fin, {once:true});
+    setTimeout(fin, ms||8000);
+  });
+}
 async function cloudLogin(){
   const code=slug($("#li-code").value);
   const user=slug($("#li-user").value);
   const pass=$("#li-pass").value;
   if(!code||!user||!pass){ $("#li-err").textContent="Escribe código, usuario y contraseña."; return; }
+  $("#li-err").textContent="Conectando…";
+  if(!window.FB){
+    await esperarNube(6000);
+    if(!window.FB){
+      $("#li-err").textContent="No se pudo conectar con el servidor. Revisa tu internet y vuelve a intentar.";
+      return;
+    }
+  }
   const {auth,signInWithEmailAndPassword,getDoc}=window.FB;
   $("#li-err").textContent="Entrando…";
   try{
@@ -2035,6 +2057,144 @@ $("#instov").onclick=e=>{ if(e.target===$("#instov")) closeInstall(); };
   };
   refreshInstallBtn();
 })();
+
+/* ============================================================
+   NOTIFICACIONES (push)
+   ============================================================ */
+const VAPID_KEY = "BDBtBDjN_Ci8VK5g1Kvb5kPH8YkTiD1AKkgxaf7DlCP0pnb_sPpwHnbZbA0wfRjr58zim5BbS_CUOa71MK4HDj0";
+
+let MSG=null;
+async function initPush(){
+  if(!CLOUD || !fbReady() || !CONG || !USER) return;
+  if(!("Notification" in window) || !("serviceWorker" in navigator)) return;
+  try{
+    const {getMessaging,getToken,onMessage,isSupported,app}=window.FB;
+    if(!(await isSupported())) return;
+    if(Notification.permission==="denied") return;
+    if(Notification.permission!=="granted"){
+      const p=await Notification.requestPermission();
+      if(p!=="granted"){ toast("No recibirás avisos hasta permitir las notificaciones"); return; }
+    }
+    const reg=await navigator.serviceWorker.register("firebase-messaging-sw.js");
+    MSG=getMessaging(app);
+    const token=await getToken(MSG,{ vapidKey:VAPID_KEY, serviceWorkerRegistration:reg });
+    if(token) await saveToken(token);
+    onMessage(MSG, payload=>{
+      const d=(payload&&payload.data)||{}; const n=(payload&&payload.notification)||{};
+      toast((d.title||n.title||"Aviso")+((d.body||n.body)?": "+(d.body||n.body):""));
+      try{ renderReminders(); }catch(_){}
+    });
+  }catch(e){ console.error("push", e); }
+}
+async function saveToken(token){
+  try{
+    const {updateDoc,arrayUnion}=window.FB;
+    await updateDoc(memberRef(USER.id), { tokens: arrayUnion(token) });
+    localStorage.setItem("cca_token", token);
+  }catch(e){ console.error("token", e); }
+}
+async function dropToken(){
+  const t=localStorage.getItem("cca_token");
+  if(!t || !fbReady() || !CONG || !USER) return;
+  try{ const {updateDoc,arrayRemove}=window.FB; await updateDoc(memberRef(USER.id), { tokens: arrayRemove(t) }); }catch(e){}
+  localStorage.removeItem("cca_token");
+}
+async function resetUserPassword(uid, nueva){
+  const {functions,httpsCallable}=window.FB;
+  const fn=httpsCallable(functions,"resetPassword");
+  await fn({ cong:CONG, uid, nueva });
+}
+
+/* ============================================================
+   ENLACES DE BOTONES
+   ============================================================ */
+$("#li-btn").onclick=doLogin;
+$("#li-pass").addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
+$("#li-user").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#li-pass").focus(); });
+$("#li-code").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#li-user").focus(); });
+
+/* Crear congregación */
+function openNewCong(){ $("#nc-err").textContent=""; $("#newcong").classList.add("show"); }
+function closeNewCong(){ $("#newcong").classList.remove("show"); }
+$("#li-new").onclick=openNewCong;
+$("#nc-cancel").onclick=closeNewCong;
+$("#nc-close").onclick=closeNewCong;
+$("#nc-save").onclick=createCongregation;
+$("#newcong").onclick=e=>{ if(e.target===$("#newcong")) closeNewCong(); };
+
+/* Cambiar mi propia contraseña */
+function openPw(){ $("#pw-err").textContent=""; $("#pw-old").value=""; $("#pw-new").value=""; $("#pw-new2").value=""; $("#pwov").classList.add("show"); }
+function closePw(){ $("#pwov").classList.remove("show"); }
+async function changeMyPassword(){
+  const oldp=$("#pw-old").value, np=$("#pw-new").value, np2=$("#pw-new2").value;
+  if(!oldp||!np||!np2){ $("#pw-err").textContent="Llena los tres campos."; return; }
+  if(np.length<6){ $("#pw-err").textContent="La nueva debe tener al menos 6 caracteres."; return; }
+  if(np!==np2){ $("#pw-err").textContent="Las nuevas contraseñas no coinciden."; return; }
+  if(np===oldp){ $("#pw-err").textContent="La nueva debe ser distinta a la actual."; return; }
+  if(!CLOUD || !fbReady()){ $("#pw-err").textContent="Sin conexión con la nube. Inténtalo con internet."; return; }
+  const {auth,EmailAuthProvider,reauthenticateWithCredential,updatePassword}=window.FB;
+  const u=auth.currentUser;
+  if(!u){ $("#pw-err").textContent="Vuelve a entrar e inténtalo de nuevo."; return; }
+  $("#pw-err").textContent="Cambiando…";
+  try{
+    await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, oldp));
+    await updatePassword(u, np);
+    closePw(); toast("Contraseña cambiada");
+  }catch(e){
+    const c=(e&&e.code)||"";
+    $("#pw-err").textContent = (c==="auth/invalid-credential"||c==="auth/wrong-password")
+      ? "La contraseña actual no es correcta." : cloudErr(e);
+  }
+}
+$("#pwBtn").onclick=openPw;
+$("#pw-cancel").onclick=closePw;
+$("#pw-close").onclick=closePw;
+$("#pw-save").onclick=changeMyPassword;
+$("#pwov").onclick=e=>{ if(e.target===$("#pwov")) closePw(); };
+
+/* Restablecer contraseña de otra persona (solo Anciano) */
+let resetCtx=null;
+function openReset(uid){
+  if(USER.role!=="Anciano"){ toast("Solo un anciano."); return; }
+  const u=(DATA.users||[]).find(x=>x.id===uid); if(!u) return;
+  resetCtx=uid;
+  $("#rs-who").textContent=u.name||u.username;
+  $("#rs-new").value=""; $("#rs-err").textContent="";
+  $("#rsov").classList.add("show");
+}
+function closeReset(){ $("#rsov").classList.remove("show"); resetCtx=null; }
+async function doReset(){
+  const np=$("#rs-new").value.trim();
+  if(np.length<6){ $("#rs-err").textContent="Debe tener al menos 6 caracteres."; return; }
+  if(!resetCtx) return;
+  if(!fbReady()){ $("#rs-err").textContent="Sin conexión con la nube."; return; }
+  $("#rs-err").textContent="Restableciendo…";
+  try{ await resetUserPassword(resetCtx, np); closeReset(); toast("Contraseña restablecida"); }
+  catch(e){
+    const m=(e&&e.message)||"";
+    $("#rs-err").textContent = /not-found|internal|not exist/i.test(m)
+      ? "Falta desplegar las funciones en Firebase (ver LEEME-PUSH)." : (m||"No se pudo.");
+  }
+}
+$("#rs-cancel").onclick=closeReset;
+$("#rs-close").onclick=closeReset;
+$("#rs-save").onclick=doReset;
+$("#rsov").onclick=e=>{ if(e.target===$("#rsov")) closeReset(); };
+
+/* Red de seguridad: si algo truena, que se vea (nunca falla en silencio) */
+window.addEventListener("error", function(ev){
+  const msg=(ev && ev.message) || "";
+  if(!msg) return;
+  console.error("error global:", msg);
+  const enLogin = $("#login") && $("#login").style.display!=="none";
+  if(enLogin && $("#li-err")) $("#li-err").textContent="Ocurrió un problema al abrir la app. Cierra y vuelve a abrirla.";
+});
+window.addEventListener("unhandledrejection", function(ev){ console.error("promesa sin atender:", ev && ev.reason); });
+
+/* arranque */
+refreshLoginHint();
+applyBranding();
+window.addEventListener("fb-ready", refreshLoginHint);
 
 /* exponer para tests en Node (no afecta navegador) */
 if(typeof module!=="undefined"){ module.exports={perms,canAdd,ROLES}; }
