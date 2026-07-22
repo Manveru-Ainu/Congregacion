@@ -1038,7 +1038,7 @@ function subscribeCloud(){
   }));
   // usuarios de la congregación
   unsubs.push(onSnapshot(collection(db,"congregaciones",CONG,"members"), snap=>{
-    const us=[]; snap.forEach(d=>{ const u=d.data(); us.push({ id:d.id, name:u.name, username:u.username, role:u.role }); });
+    const us=[]; snap.forEach(d=>{ const u=d.data(); us.push({ id:d.id, name:u.name, username:u.username, role:u.role, hasToken:Array.isArray(u.tokens)&&u.tokens.length>0 }); });
     DATA.users=us; saveLocal(DATA);
     const me=us.find(u=>u.id===USER.id);
     if(me && me.role!==USER.role){ USER.role=me.role; $("#whoRole").textContent=me.role; buildBottomNav(); }
@@ -1199,13 +1199,61 @@ function renderGames(id, cfg, rows){
   }).join("");
   $("#panel").innerHTML = head + portalBtn + `<div class="game-grid">${cards}</div>`;
 }
+/* ============================================================
+   HISTORIAL — separa lo pasado de lo próximo
+   ============================================================ */
+let HIST = {};                       // qué secciones muestran su historial
+function hoyISO(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+// Un registro es "pasado" si su última fecha ya quedó atrás
+function esPasado(r){
+  if(!r) return false;
+  const f = (r.fecha2 && r.fecha2>r.fecha) ? r.fecha2 : (r.fecha_fin && r.fecha_fin>r.fecha ? r.fecha_fin : r.fecha);
+  if(!f) return false;               // sin fecha nunca caduca (ej. anuncios sin fecha)
+  return String(f) < hoyISO();
+}
+/* Avisa si la persona asignada no recibirá la notificación */
+function avisarSiNoRecibe(section, obj){
+  if(!CLOUD || section!=="disc_ext" || !obj.discursante) return;
+  const u=(DATA.users||[]).find(x=>x.id===obj.discursante);
+  if(u && u.hasToken===false){
+    setTimeout(()=>toast(`${u.name||u.username} aún no ha abierto la app en su teléfono: no le llegará el aviso.`), 1200);
+  }
+}
+function partirHistorial(rows){
+  const pasados=[], vigentes=[];
+  (rows||[]).forEach(r=> (esPasado(r)?pasados:vigentes).push(r));
+  return {vigentes, pasados};
+}
+function toggleHist(sec){ HIST[sec]=!HIST[sec]; go(CURRENT); }
+async function limpiarHistorial(sec){
+  if(USER.role!=="Anciano"){ toast("Solo un anciano."); return; }
+  const {pasados}=partirHistorial(DATA.sections[sec]||[]);
+  if(!pasados.length){ toast("No hay historial que borrar"); return; }
+  if(!(await uiConfirm(`¿Borrar definitivamente ${pasados.length} registro(s) del historial? No se puede deshacer.`))) return;
+  for(const r of pasados){ cloudDelRecord(r.id); }
+  DATA.sections[sec]=(DATA.sections[sec]||[]).filter(r=>!esPasado(r));
+  saveLocal(DATA); toast("Historial borrado"); go(CURRENT);
+}
+
 function renderSection(id){
   const cfg=SECTIONS[id];
-  const rows=DATA.sections[id]||[];
+  const todos=DATA.sections[id]||[];
   const showAdd = canAdd(id, USER.role);
   const p = perms(USER.role);
 
-  if(cfg.cards){ renderGames(id, cfg, rows); return; }
+  if(cfg.cards){ renderGames(id, cfg, todos); return; }
+
+  const {vigentes, pasados} = partirHistorial(todos);
+  const verHist = !!HIST[id];
+  const rows = verHist ? pasados : vigentes;
+  const histBar = pasados.length
+    ? `<div class="hd-actions" style="margin:-4px 0 16px;gap:8px">
+         <button class="btn ghost" onclick="toggleHist('${id}')">${verHist?"← Volver a lo próximo":`Ver historial (${pasados.length})`}</button>
+         ${(verHist && USER.role==="Anciano")?`<button class="btn ghost del" onclick="limpiarHistorial('${id}')">Borrar historial</button>`:""}
+       </div>`
+    : "";
+  const histNote = verHist
+    ? `<p class="meta" style="margin:-8px 0 14px">Mostrando registros de fechas que ya pasaron.</p>` : "";
 
   let head = `<div class="panel-head">
       <div><h2>${esc(cfg.title)}</h2><p>${esc(cfg.desc)}</p></div>
@@ -1231,16 +1279,21 @@ function renderSection(id){
   }
 
   if(!rows.length){
-    $("#panel").innerHTML = head + mapBlock + catBlock + `<div class="card empty">
+    $("#panel").innerHTML = head + mapBlock + catBlock + histBar + `<div class="card empty">
       <div class="big"><svg viewBox="0 0 24 24" width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.45"><path d="M3 13l3-8h12l3 8"/><path d="M3 13v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/><path d="M3 13h5l1 2h6l1-2h5"/></svg></div>
-      <p><b>Sin registros todavía</b></p>
-      <p>${showAdd?"Usa el botón para crear el primero.":"Aún no hay información cargada."}</p>
+      <p><b>${verHist?"El historial está vacío":(pasados.length?"No hay nada próximo":"Sin registros todavía")}</b></p>
+      <p>${verHist?"Aquí aparecerá lo que ya pasó."
+           :(pasados.length?"Lo anterior quedó guardado en el historial."
+             :(showAdd?"Usa el botón para crear el primero.":"Aún no hay información cargada."))}</p>
     </div>`;
     return;
   }
 
   const sorted=[...rows];
-  if(cfg.fields.some(f=>f.k==="fecha")) sorted.sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||""));
+  if(cfg.fields.some(f=>f.k==="fecha")){
+    sorted.sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||""));
+    if(verHist) sorted.reverse();   // el historial: lo más reciente arriba
+  }
 
   const ths = cfg.cols.map(c=>{
     const f=cfg.fields.find(x=>x.k===c); return `<th>${esc(f?f.l:c)}</th>`;
@@ -1276,7 +1329,7 @@ function renderSection(id){
     return `<tr class="${clickable?'rowclick':''}" ${clickable?`onclick="${onclick}"`:''}>${tds}${hasAnyClick?`<td class="chev">${clickable?CHEVR:""}</td>`:''}</tr>`;
   }).join("");
 
-  $("#panel").innerHTML = head + mapBlock + catBlock + `<div class="card table-wrap">
+  $("#panel").innerHTML = head + mapBlock + catBlock + histBar + histNote + `<div class="card table-wrap">
     <table><thead><tr>${ths}${actionsCol}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 const CHEVR='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
@@ -1493,6 +1546,7 @@ async function saveForm(){
     DATA.sections[section].push(obj);
     cloudPutRecord(section, obj);
     toast("Registro agregado");
+    avisarSiNoRecibe(section, obj);
   }
   save(DATA); closeModal(); go(CURRENT);
 }
@@ -1847,8 +1901,17 @@ function renderConfig(){
   $("#cf-test").onclick=probarNotificacion;
   mostrarEstadoNotif();
 }
+function puedeRecibirAvisos(){
+  return ("Notification" in window) && ("serviceWorker" in navigator) && ("PushManager" in window);
+}
 function mostrarEstadoNotif(){
   const el=$("#cf-notif"); if(!el) return;
+  if(!puedeRecibirAvisos()){
+    el.textContent = esHuawei()
+      ? "Este navegador (Petal) no puede recibir avisos. Abre la app en Firefox para que te lleguen."
+      : "Este navegador no puede recibir avisos. Usa Chrome (Android/PC) o Safari (iPhone).";
+    return;
+  }
   const perm = ("Notification" in window) ? Notification.permission : "no disponible";
   const tok  = localStorage.getItem("cca_token");
   const txt = perm==="granted"
@@ -1859,7 +1922,11 @@ function mostrarEstadoNotif(){
   el.textContent = txt;
 }
 async function probarNotificacion(){
-  if(!("Notification" in window)){ toast("Este dispositivo no soporta notificaciones"); return; }
+  if(!puedeRecibirAvisos()){
+    toast(esHuawei() ? "Petal no puede mostrar avisos. Abre la app en Firefox."
+                     : "Este navegador no puede mostrar avisos.");
+    mostrarEstadoNotif(); return;
+  }
   if(Notification.permission!=="granted"){
     const p=await Notification.requestPermission();
     if(p!=="granted"){ toast("No diste permiso"); mostrarEstadoNotif(); return; }
@@ -1897,7 +1964,7 @@ function applyBranding(){
 function renderUsers(){
   $("#crumb").textContent="Administración · Usuarios";
   const rows=DATA.users.map(u=>`<tr>
-    <td class="cell-strong">${esc(u.name||"—")}<div class="meta">@${esc(u.username)}</div></td>
+    <td class="cell-strong">${esc(u.name||"—")}<div class="meta">@${esc(u.username)}${CLOUD?(u.hasToken?" · recibe avisos":" · sin dispositivo"):""}</div></td>
     <td>${badgeFor("rol",u.role)}</td>
     <td><div class="row-actions">
       <button class="btn ghost sm" onclick="openUser('${u.id}')">Editar</button>
@@ -1998,13 +2065,37 @@ function refreshInstallBtn(){
   const b=$("#installBtn"); if(!b) return;
   b.style.display = yaInstalada() ? "none" : "block";
 }
+function esHuawei(){
+  const ua=navigator.userAgent||"";
+  return /HuaweiBrowser|Petal|HarmonyOS|HMSCore/i.test(ua);
+}
 function comoInstalar(){
   const ua=navigator.userAgent||"";
   const esIOS = /iPhone|iPad|iPod/i.test(ua);
   const esAndroid = /Android/i.test(ua);
-  const esChrome = /Chrome|CriOS|Edg/i.test(ua) && !/OPR|SamsungBrowser|HuaweiBrowser|MiuiBrowser|Firefox|FxiOS/i.test(ua);
-  const esSafari = /Safari/i.test(ua) && !/Chrome|CriOS|Android/i.test(ua);
+  const esChrome = /Chrome|CriOS|Edg/i.test(ua) && !/OPR|SamsungBrowser|HuaweiBrowser|MiuiBrowser|Firefox|FxiOS|Petal/i.test(ua);
+  const esFirefox = /Firefox|FxiOS/i.test(ua);
 
+  if(esHuawei()){
+    return `<p><b>Huawei / Petal</b></p>
+      <p>Para poner el ícono en tu pantalla:</p>
+      <ol style="padding-left:18px;line-height:1.7">
+        <li>Toca el menú del navegador (los tres puntos o las tres rayas).</li>
+        <li>Elige <b>"Agregar a la pantalla de inicio"</b> o <b>"Añadir a inicio"</b>.</li>
+        <li>Confirma con <b>Agregar</b>.</li>
+      </ol>
+      <p class="meta" style="margin-top:14px"><b>Para recibir avisos con el teléfono bloqueado:</b> Petal no puede mostrarlos. Instala <b>Firefox</b> desde AppGallery, abre esta misma dirección ahí y agrégala a la pantalla de inicio. Firefox sí puede enviar los avisos aunque tu teléfono no tenga servicios de Google.</p>
+      <p class="meta">Si no usas Firefox, la app funciona igual, pero los recordatorios solo se verán al abrirla.</p>`;
+  }
+  if(esFirefox && esAndroid){
+    return `<p><b>En Firefox (Android):</b></p>
+      <ol style="padding-left:18px;line-height:1.7">
+        <li>Toca el menú <b>⋮</b> (arriba a la derecha).</li>
+        <li>Elige <b>"Agregar a la pantalla de inicio"</b> o <b>"Instalar"</b>.</li>
+        <li>Confirma con <b>Agregar</b>.</li>
+      </ol>
+      <p class="meta">Acepta el permiso de notificaciones cuando la app lo pida.</p>`;
+  }
   if(esIOS){
     return `<p><b>En iPhone o iPad:</b></p>
       <ol style="padding-left:18px;line-height:1.7">
