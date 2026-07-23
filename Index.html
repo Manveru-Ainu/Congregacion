@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aventuras Bíblicas — En línea</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+:root{
+  --noche:#1b1410; --cuero:#2a2018; --cuero2:#352a1f; --linea:#4a3a29;
+  --pergamino:#eee3cc; --arena:#b9a888; --lampara:#d9a441; --rojo:#b8562f;
+  --acc:#d9a441;
+  --disp:'Cinzel', Georgia, serif; --body:'EB Garamond', Georgia, serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--noche);color:var(--pergamino);font-family:var(--body);font-size:18px;line-height:1.55;min-height:100dvh;background-image:radial-gradient(ellipse 900px 500px at 50% -10%, rgba(217,164,65,.10), transparent 60%)}
+.pantalla{display:none;max-width:960px;margin:0 auto;padding:22px 16px 40px}
+.pantalla.activa{display:block}
+h1,h2,h3{font-family:var(--disp);letter-spacing:.06em;color:var(--pergamino)}
+.eyebrow{font-family:var(--disp);font-size:.72rem;letter-spacing:.28em;color:var(--lampara);text-transform:uppercase;text-align:center;margin-bottom:8px}
+.titulo{font-size:clamp(2rem,6vw,3.1rem);text-align:center;font-weight:700}
+.titulo span{color:var(--lampara)}
+.sub{color:var(--arena);text-align:center;max-width:560px;margin:10px auto 0;font-style:italic}
+.divisor{width:120px;height:1px;background:linear-gradient(90deg,transparent,var(--lampara),transparent);margin:20px auto}
+.btn{font-family:var(--disp);font-size:.9rem;letter-spacing:.12em;text-transform:uppercase;background:var(--lampara);color:#241a0d;border:none;border-radius:6px;padding:13px 26px;cursor:pointer;transition:filter .15s, transform .1s}
+.btn:hover{filter:brightness(1.1)} .btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.secundario{background:transparent;color:var(--lampara);border:1px solid var(--lampara)}
+.btn.peligro{background:transparent;color:var(--arena);border:1px solid var(--linea)}
+.btn:focus-visible{outline:2px solid var(--pergamino);outline-offset:2px}
+.grid-esc{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:24px}
+.card-esc{background:var(--cuero);border:1px solid var(--linea);border-radius:10px;padding:20px 18px;cursor:pointer;position:relative;overflow:hidden;transition:transform .15s, border-color .15s;text-align:left;color:var(--pergamino);font-family:var(--body);font-size:1rem}
+.card-esc::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
+.card-esc:hover{transform:translateY(-3px);border-color:var(--c)}
+.card-esc .ico{font-size:1.9rem}
+.card-esc h3{font-size:1.05rem;margin:8px 0 4px;color:var(--c);letter-spacing:.08em}
+.card-esc .cita{color:var(--lampara);font-size:.85rem;font-style:italic}
+.card-esc p{color:var(--arena);font-size:.92rem;margin-top:6px}
+.panel{background:var(--cuero);border:1px solid var(--linea);border-radius:10px;padding:20px;margin-top:18px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--linea);background:var(--cuero2);color:var(--pergamino);border-radius:20px;padding:7px 14px;cursor:pointer;font-family:var(--body);font-size:.95rem}
+.chip.sel{background:var(--acc);color:#241a0d;border-color:var(--acc);font-weight:600}
+.chip:disabled{opacity:.35;cursor:not-allowed}
+.detalle-arq{background:var(--noche);border-radius:8px;border:1px dashed var(--linea);padding:12px;font-size:.9rem;color:var(--arena);margin-top:10px}
+.detalle-arq .stats{color:var(--pergamino);font-family:var(--disp);font-size:.78rem;letter-spacing:.08em;margin-top:6px}
+input[type=text]{background:var(--noche);border:1px solid var(--linea);border-radius:6px;color:var(--pergamino);font-family:var(--body);font-size:1.05rem;padding:11px 13px;width:100%}
+input:focus{outline:1px solid var(--acc)}
+label{font-family:var(--disp);font-size:.72rem;letter-spacing:.18em;color:var(--arena);text-transform:uppercase;display:block;margin-bottom:6px}
+.codigo{font-family:var(--disp);font-size:2.6rem;letter-spacing:.4em;color:var(--lampara);text-align:center;background:var(--noche);border:1px dashed var(--linea);border-radius:10px;padding:16px;margin:10px 0}
+.estado-red{font-size:.8rem;color:var(--arena);text-align:center;font-style:italic;margin-top:8px}
+.estado-red.ok{color:#8fbf7a} .estado-red.err{color:var(--rojo)}
+#banner{border:1px solid var(--linea);border-left:4px solid var(--acc);background:var(--cuero);border-radius:8px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+#banner .nom{font-family:var(--disp);color:var(--acc);letter-spacing:.1em;font-size:1rem}
+#banner .acto{font-family:var(--disp);font-size:.72rem;letter-spacing:.2em;color:var(--arena);text-transform:uppercase}
+.btn-audio{font-family:var(--disp);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;background:transparent;border:1px solid var(--linea);color:var(--arena);border-radius:20px;padding:6px 14px;cursor:pointer;transition:all .15s}
+.btn-audio.on{border-color:var(--acc);color:var(--acc);box-shadow:0 0 12px rgba(217,164,65,.25)}
+#log{margin-top:14px;background:var(--cuero);border:1px solid var(--linea);border-radius:10px;padding:18px;max-height:46vh;overflow-y:auto;scroll-behavior:smooth}
+.msg{margin-bottom:16px;animation:aparecer .5s ease}
+@keyframes aparecer{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.msg .quien{font-family:var(--disp);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);margin-bottom:4px}
+.msg.narrador .cuerpo{color:var(--pergamino)}
+.msg.sistema .cuerpo{color:var(--lampara);font-family:var(--disp);font-size:.85rem;letter-spacing:.08em}
+.msg.leyendo .cuerpo{background:linear-gradient(90deg,rgba(217,164,65,.08),transparent);border-radius:6px;padding:4px 8px;margin:-4px -8px}
+.msg .titEsc{font-family:var(--disp);font-size:.95rem;color:var(--acc);letter-spacing:.1em;margin-bottom:4px}
+#tiraJug{display:flex;gap:10px;overflow-x:auto;padding:12px 2px;margin-top:6px}
+.pj{min-width:150px;background:var(--cuero);border:1px solid var(--linea);border-radius:10px;padding:10px 12px;flex-shrink:0;transition:box-shadow .3s, border-color .3s}
+.pj.turno{border-color:var(--acc);box-shadow:0 0 18px rgba(217,164,65,.25)}
+.pj.abatido{opacity:.55;filter:grayscale(.6)}
+.pj.desconectado{opacity:.4;border-style:dashed}
+.pj .ico{font-size:1.4rem}
+.pj .nom{font-family:var(--disp);font-size:.85rem;letter-spacing:.06em;margin-top:2px}
+.pj .arq{color:var(--arena);font-size:.78rem}
+.pj .vida{margin-top:5px;font-size:.9rem;letter-spacing:2px}
+.pj .st{color:var(--arena);font-size:.7rem;font-family:var(--disp);letter-spacing:.05em;margin-top:4px}
+.pj .conx{font-size:.65rem;letter-spacing:.1em;margin-top:3px}
+.pj .conx.on{color:#8fbf7a} .pj .conx.off{color:var(--rojo)}
+#zonaAccion{margin-top:10px;display:grid;gap:10px}
+#zonaEspera{text-align:center;color:var(--arena);font-style:italic;padding:14px;background:var(--cuero);border:1px dashed var(--linea);border-radius:10px}
+#zonaOpciones{display:none;background:var(--cuero);border:1px solid var(--linea);border-radius:10px;padding:16px;text-align:center}
+#zonaOpciones.on{display:block}
+#zonaOpciones .pide{font-family:var(--disp);letter-spacing:.1em;font-size:.9rem;color:var(--acc);margin-bottom:12px}
+#opsBtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+#zonaDados{display:none;background:var(--cuero);border:1px solid var(--acc);border-radius:10px;padding:16px;text-align:center}
+#zonaDados.on{display:block}
+#zonaDados .pide{font-family:var(--disp);letter-spacing:.1em;font-size:.95rem;color:var(--acc)}
+.dados{display:flex;justify-content:center;gap:16px;margin:16px 0}
+.dado{width:64px;height:64px;border-radius:12px;background:var(--pergamino);color:#241a0d;display:flex;align-items:center;justify-content:center;font-size:2rem;font-family:var(--disp);font-weight:700;box-shadow:0 4px 0 rgba(0,0,0,.4), inset 0 -3px 0 rgba(0,0,0,.15)}
+.dado.girando{animation:girar .09s linear infinite}
+@keyframes girar{0%{transform:rotate(-6deg) translateY(-2px)}50%{transform:rotate(6deg) translateY(2px)}100%{transform:rotate(-6deg) translateY(-2px)}}
+@media (prefers-reduced-motion: reduce){.dado.girando{animation:none}.msg{animation:none}}
+#resDado{font-size:1.1rem;margin:8px 0}
+#resDado .clasif{font-family:var(--disp);letter-spacing:.12em;display:block;margin-top:4px}
+.exito{color:#8fbf7a}.parcial{color:var(--lampara)}.fallo{color:var(--rojo)}
+#botonesDado{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+#filaContinuar{text-align:center}
+#epilogoTxt{white-space:pre-wrap;color:var(--pergamino)}
+.centro{text-align:center;margin-top:20px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.rol-badge{display:inline-block;font-family:var(--disp);font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;padding:3px 10px;border-radius:12px;border:1px solid var(--linea);color:var(--arena);margin-bottom:8px}
+details.guia{margin-top:14px;background:var(--cuero);border:1px solid var(--linea);border-radius:8px;padding:12px 16px;color:var(--arena);font-size:.92rem}
+details.guia summary{font-family:var(--disp);letter-spacing:.15em;font-size:.75rem;text-transform:uppercase;color:var(--lampara);cursor:pointer}
+@media(max-width:600px){body{font-size:16.5px} #log{max-height:40vh} .codigo{font-size:2rem;letter-spacing:.3em}}
+</style>
+</head>
+<body>
+
+<!-- ============ INICIO: crear o unirse ============ -->
+<section id="scrInicio" class="pantalla activa">
+  <div style="text-align:center;font-size:2.4rem;margin-top:18px">🕯️</div>
+  <p class="eyebrow">Juego de rol bíblico · en línea</p>
+  <h1 class="titulo">AVENTURAS <span>bíblicas</span></h1>
+  <p class="sub">Cada quien juega desde su teléfono. El anfitrión ve el tablero de todos.</p>
+  <div class="divisor"></div>
+  <div class="panel" style="text-align:center">
+    <h3 style="font-size:1rem;letter-spacing:.15em;color:var(--arena)">SOY EL ANFITRIÓN</h3>
+    <p style="color:var(--arena);font-size:.9rem;margin:8px 0 14px">Creo la sala, elijo la historia y comparto el tablero.</p>
+    <button class="btn" onclick="crearSala()">Crear sala</button>
+  </div>
+  <div class="panel" style="text-align:center">
+    <h3 style="font-size:1rem;letter-spacing:.15em;color:var(--arena)">ME UNO A UNA SALA</h3>
+    <div style="max-width:320px;margin:12px auto 0">
+      <label>Código de la sala</label>
+      <input type="text" id="inpCodigo" maxlength="4" placeholder="ABCD" style="text-transform:uppercase;text-align:center;font-family:var(--disp);font-size:1.4rem;letter-spacing:.3em">
+      <label style="margin-top:12px">Tu nombre</label>
+      <input type="text" id="inpNombreJug" placeholder="¿Cómo te llamas?">
+    </div>
+    <button class="btn secundario" style="margin-top:14px" onclick="unirseSala()">Unirme</button>
+    <div class="estado-red" id="estUnirse"></div>
+  </div>
+  <details class="guia">
+    <summary>Cómo funciona</summary>
+    <p style="margin-top:8px">Un jugador crea la sala y obtiene un código de 4 letras. Los demás lo escriben desde su propio teléfono. El anfitrión elige la historia; durante la partida, todos ven en su teléfono el tablero completo con las tarjetas y los corazones de cada personaje, y la del jugador en turno se ilumina. El anfitrión puede además conectar su teléfono a una pantalla grande o TV para compartir el tablero con todos a la vez. Cuando te toca, tiras tus dados y decides desde tu propio teléfono. Todo funciona por conexión directa entre dispositivos (misma red o internet), sin servidores nuestros. Necesita estar en línea solo para conectarse.</p>
+  </details>
+</section>
+
+<!-- ============ ANFITRIÓN: elegir escenario ============ -->
+<section id="scrEscena" class="pantalla">
+  <span class="rol-badge">Anfitrión</span>
+  <h2 class="titulo" style="font-size:1.5rem">Escojan su historia</h2>
+  <div class="grid-esc" id="gridEsc"></div>
+</section>
+
+<!-- ============ SALA DE ESPERA (anfitrión) ============ -->
+<section id="scrSala" class="pantalla">
+  <span class="rol-badge" id="salaEsc"></span>
+  <h2 class="titulo" style="font-size:1.5rem">Sala abierta</h2>
+  <p class="sub">Compartan este código. Cuando todos estén dentro, comienza la partida.</p>
+  <div class="codigo" id="codigoSala">····</div>
+  <div class="estado-red ok" id="estSala">Esperando jugadores…</div>
+  <div class="panel">
+    <label>En la compañía (<span id="numConectados">0</span>)</label>
+    <div id="listaLobby" style="display:grid;gap:8px;margin-top:8px"></div>
+  </div>
+  <div class="centro">
+    <button class="btn peligro" onclick="location.reload()">Cancelar</button>
+    <button class="btn" id="btnIniciarPartida" onclick="anfIniciarPartida()" disabled>Comienza la aventura</button>
+  </div>
+  <p class="estado-red" style="margin-top:10px">Se necesitan al menos 3 jugadores. Ideal: 4.</p>
+</section>
+
+<!-- ============ JUGADOR: elegir personaje ============ -->
+<section id="scrElegirPj" class="pantalla">
+  <span class="rol-badge">Jugador</span>
+  <h2 class="titulo" style="font-size:1.5rem" id="elegirTit">Tu personaje</h2>
+  <p class="sub" id="elegirSub"></p>
+  <div class="panel">
+    <label>¿Hombre o mujer?</label>
+    <div class="chips" id="elegirGen"></div>
+    <label style="margin-top:14px">Arquetipo (los ocupados aparecen bloqueados)</label>
+    <div class="chips" id="elegirArqs"></div>
+    <div class="detalle-arq" id="elegirDet" style="display:none"></div>
+  </div>
+  <div class="centro">
+    <button class="btn" id="btnConfirmarPj" onclick="jugConfirmarPj()" disabled>Confirmar</button>
+  </div>
+  <div class="estado-red" id="estElegir">Esperando a que el anfitrión inicie…</div>
+</section>
+
+<!-- ============ JUEGO (ambos roles) ============ -->
+<section id="scrJuego" class="pantalla">
+  <div id="banner">
+    <div><span class="ico" id="banIco"></span> <span class="nom" id="banNom"></span></div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <button id="btnVoz" class="btn-audio" onclick="toggleVoz()" title="Leer la narración en voz alta">🔊 Narrar</button>
+      <span class="acto" id="banActo">Acto I</span>
+    </div>
+  </div>
+  <div id="tiraJug"></div>
+  <div id="log" aria-live="polite"></div>
+  <div id="zonaAccion">
+    <div id="zonaEspera" style="display:none"></div>
+    <div id="zonaOpciones">
+      <div class="pide" id="opsPide"></div>
+      <div id="opsBtns"></div>
+    </div>
+    <div id="zonaDados">
+      <div class="pide" id="dadoPide"></div>
+      <div class="dados"><div class="dado" id="d1">?</div><div class="dado" id="d2">?</div></div>
+      <div id="resDado"></div>
+      <div id="botonesDado">
+        <button class="btn" id="btnTirar" onclick="jugTirar()">Tirar los dados</button>
+        <button class="btn secundario" id="btnRepetir" style="display:none" onclick="jugRepetir()">Gastar ❤️ y repetir</button>
+        <button class="btn" id="btnAceptar" style="display:none" onclick="jugAceptar()">Aceptar resultado</button>
+      </div>
+    </div>
+    <div id="filaContinuar">
+      <button class="btn" id="btnCont" onclick="anfAvanzar()" style="display:none">Continuar ➜</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EPÍLOGO ============ -->
+<section id="scrFin" class="pantalla">
+  <div style="text-align:center;font-size:2.4rem;margin-top:18px">🌅</div>
+  <p class="eyebrow">Fin del relato</p>
+  <h2 class="titulo" style="font-size:1.8rem" id="finTitulo"></h2>
+  <div class="panel"><p id="epilogoTxt"></p></div>
+  <div class="centro">
+    <button class="btn" onclick="location.reload()">Jugar otra historia</button>
+  </div>
+</section>
+
+<script>
+
+/* ==================== PERSONAJES ==================== */
+const NOM_ATR = {fuerza:'Fuerza', agilidad:'Agilidad', ingenio:'Ingenio', carisma:'Carisma', fe:'Fe'};
+const ARQUETIPOS = [
+ {id:'lider', ico:'🪨', m:'El Líder', f:'La Líder', stats:{fuerza:1,agilidad:0,ingenio:1,carisma:2,fe:1},
+  hab:'Voz firme: +1 extra en tiradas de Carisma para organizar o animar al grupo.',
+  deb:'Carga la responsabilidad del grupo.'},
+ {id:'constructor', ico:'🔨', m:'El Constructor', f:'La Artesana', stats:{fuerza:2,agilidad:0,ingenio:1,carisma:-1,fe:1},
+  hab:'Manos hábiles: +1 extra al construir, reparar o improvisar con materiales.',
+  deb:'Terco/a: le cuesta aceptar planes ajenos.'},
+ {id:'explorador', ico:'🏹', m:'El Explorador', f:'La Exploradora', stats:{fuerza:0,agilidad:2,ingenio:1,carisma:0,fe:0},
+  hab:'Ojo agudo: +1 extra al vigilar, rastrear o moverse con sigilo.',
+  deb:'Impulsivo/a: actúa sin consultar.'},
+ {id:'escriba', ico:'📜', m:'El Escriba', f:'La Sabia', stats:{fuerza:-1,agilidad:0,ingenio:2,carisma:1,fe:1},
+  hab:'Memoria fiel: +1 extra al razonar con conocimiento, leyes o idiomas.',
+  deb:'Cuerpo frágil ante el esfuerzo prolongado.'},
+ {id:'cuidador', ico:'🌿', m:'El Cuidador', f:'La Cuidadora', stats:{fuerza:0,agilidad:1,ingenio:1,carisma:1,fe:1},
+  hab:'Bálsamo: en cada descanso de acto, el compañero más débil recupera 1 ❤️ extra.',
+  deb:'Se arriesga por otros aunque sea imprudente.'},
+ {id:'pastor', ico:'🐑', m:'El Pastor', f:'La Pastora', stats:{fuerza:1,agilidad:1,ingenio:0,carisma:0,fe:2},
+  hab:'Instinto del campo: +1 extra con animales, clima, agua y alimento.',
+  deb:'Desconfía de las ciudades: Carisma −1 en escenas urbanas.'}
+];
+/* Etiquetas de escena → bonos de arquetipo */
+function bonoTag(j, atr, tag){
+  let b=0; const notas=[];
+  if(tag==='construir' && j.arqId==='constructor'){b+=1;notas.push('Manos hábiles +1')}
+  if(tag==='campo' && j.arqId==='pastor'){b+=1;notas.push('Instinto del campo +1')}
+  if(tag==='sigilo' && j.arqId==='explorador'){b+=1;notas.push('Ojo agudo +1')}
+  if(tag==='saber' && j.arqId==='escriba'){b+=1;notas.push('Memoria fiel +1')}
+  if(tag==='animar' && atr==='carisma' && j.arqId==='lider'){b+=1;notas.push('Voz firme +1')}
+  if(tag==='ciudad' && atr==='carisma' && j.arqId==='pastor'){b-=1;notas.push('Desconfía de la ciudad −1')}
+  return {b, notas};
+}
+
+/* ==================== ESCENARIOS Y GUION ==================== */
+/* Escena: {acto, tit, txt, tipo:'tirada'|'eleccion'|'narr', atr, tag, pref, e, p, f}
+   'eleccion': ops:[{t, atr, tag, e, p, f}]  → se elige y luego se tira.
+   En los textos, {n} = nombre de quien tira. */
+const ESCENARIOS = [
+/* ---------- 1. EDÉN ---------- */
+{id:'eden', ico:'🌿', color:'#7ba763', nom:'Al este del Edén', cita:'Génesis 3 y 4',
+ desc:'La primera familia humana debe sobrevivir su primer año fuera del jardín.',
+ nomM:['Set','Noam','Quenan','Enós'], nomF:['Azura','Lía','Milca','Noela'],
+ intro:'La espada de fuego brilla a sus espaldas. Delante, un valle desconocido: hermoso, pero indiferente. El sol cae y hay que decidirlo todo por primera vez: dónde vivir, qué comer, cómo seguir adelante.',
+ escenas:[
+  {acto:1, tit:'El valle desconocido', tipo:'tirada', atr:'ingenio', tag:'saber', pref:'escriba',
+   txt:'Hay que elegir dónde asentarse antes del anochecer. {n} estudia el terreno: un arroyo al norte, una cueva al este, una pradera abierta al sur.',
+   e:'{n} encuentra el lugar perfecto: una loma junto al arroyo, protegida del viento y con tierra suave. La familia respira aliviada.',
+   p:'{n} elige la loma junto al arroyo… aunque descubren tarde que el suelo es pedregoso. Servirá, pero arar costará el doble.',
+   f:'La discusión sobre el sitio consume la tarde. Acampan a la intemperie y la primera noche fuera del jardín es fría y larga.'},
+  {acto:1, tit:'El primer refugio', tipo:'tirada', atr:'fuerza', tag:'construir', pref:'constructor',
+   txt:'Nubes oscuras se acumulan en el horizonte. {n} dirige la construcción de un abrigo con ramas, piedra y barro antes de que llegue la tormenta.',
+   e:'Las manos aprenden rápido. El refugio queda firme y seco; cuando la lluvia azota esa noche, dentro solo se oye el tamborileo en el techo.',
+   p:'El refugio resiste… casi todo. Una esquina gotea toda la noche y alguien duerme mojado, pero la familia está a salvo.',
+   f:'El viento arranca el techo a medio armar. Pasan la tormenta abrazados bajo una cornisa de roca, empapados y en silencio.'},
+  {acto:1, tit:'El pan de cada día', tipo:'tirada', atr:'agilidad', tag:'campo',
+   txt:'Las provisiones se acaban. {n} sale a buscar alimento: frutos silvestres, raíces, huevos… pero los animales ya no se acercan mansos como antes.',
+   e:'{n} vuelve al atardecer con el manto lleno: higos silvestres, raíces dulces y un panal abandonado. Esta noche hay banquete.',
+   p:'{n} consigue frutos suficientes para hoy, aunque unas zarzas le dejan los brazos marcados. Mañana habrá que ir más lejos.',
+   f:'Los frutos altos se escapan y una rama cede bajo su peso. {n} vuelve con las manos casi vacías y el orgullo magullado. Se reparte lo poco que hay.'},
+  {acto:2, tit:'Espinos y cardos', tipo:'tirada', atr:'fuerza', tag:'construir',
+   txt:'"Con el sudor de tu rostro comerás pan." Llega el tiempo de arar por primera vez. {n} empuña la vara endurecida al fuego y enfrenta un suelo lleno de espinos.',
+   e:'Surco a surco, la tierra se abre. Al caer la tarde hay un campo sembrado, y las manos llenas de callos parecen casi un trofeo.',
+   p:'La mitad del campo queda sembrado; la otra mitad es una guerra contra las raíces. {n} termina agotado, pero mañana se continúa.',
+   f:'La vara se parte contra una raíz y los espinos cobran su precio en rasguños. Habrá que fabricar herramientas mejores y volver a empezar.'},
+  {acto:2, tit:'El rebaño', tipo:'tirada', atr:'fe', tag:'campo', pref:'pastor',
+   txt:'Un grupo de cabras montesas baja a beber al arroyo. Si lograran ganarse su confianza, habría leche y lana. {n} se acerca despacio, con paciencia y calma.',
+   e:'Horas de quietud dan fruto: una cabra come de la mano de {n}, y donde va una, van las demás. La familia tiene su primer rebaño.',
+   p:'Dos cabras jóvenes se quedan; el resto huye monte arriba. Es poco, pero es un comienzo.',
+   f:'Un movimiento brusco y el grupo entero se desvanece entre las rocas. {n} vuelve con las manos vacías y una lección de paciencia.'},
+  {acto:2, tit:'Ojos en la oscuridad', tipo:'eleccion',
+   txt:'A medianoche, el rebaño se inquieta. Dos ojos brillan más allá de la fogata: un depredador ronda el campamento. ¿Qué hace la familia?',
+   ops:[
+    {t:'🔥 Ahuyentarlo con fuego', atr:'ingenio',
+     e:'{n} lanza ramas encendidas trazando un arco de chispas. La bestia retrocede ante ese sol pequeño y furioso, y no vuelve.',
+     p:'El fuego lo mantiene a raya toda la noche, pero nadie duerme. Al alba, la bestia se va… y el cansancio se queda.',
+     f:'Una rama encendida cae sobre la hierba seca. Apagan el conato a manotazos mientras la bestia se lleva la mejor cabra.'},
+    {t:'🪨 Plantarle cara', atr:'fuerza',
+     e:'{n} se yergue entre la bestia y el rebaño, vara en mano, y su grito resuena en todo el valle. El depredador entiende el mensaje y desaparece.',
+     p:'La bestia se retira, pero no sin un zarpazo que rasga el manto de {n}. Un palmo más y habría sido la piel.',
+     f:'La bestia es más rápida: derriba a {n} de un empujón y hiere a una cabra antes de huir. La familia pasa la noche curando heridas.'},
+    {t:'🕯️ Velar por turnos y orar', atr:'fe',
+     e:'La familia se organiza en vigilias y {n} guía la oración junto al fuego. La serenidad se contagia; la bestia ronda, no encuentra descuido, y al alba ya no está.',
+     p:'Las vigilias funcionan, aunque el sueño interrumpido pasa factura. La bestia se marcha al tercer canto del gallo… si hubiera gallos aún.',
+     f:'{n} cabecea en la última guardia y la bestia arrastra un cabrito. El balido los despierta demasiado tarde.'}]},
+  {acto:3, tit:'La nube de langostas', tipo:'tirada', atr:'ingenio',
+   txt:'El campo por fin verdea… y una nube baja de langostas aparece en el horizonte. {n} tiene poco tiempo para salvar la cosecha.',
+   e:'Humo verde de hierbas frescas, mantas sobre los brotes tiernos y toda la familia agitando ramas: la nube pasa de largo. La cosecha vive.',
+   p:'Salvan tres surcos de cada cuatro. Las langostas se llevan su parte, pero queda suficiente para el invierno… si se administra bien.',
+   f:'La nube desciende como una sola sombra. Cuando se levanta, la mitad del campo es rastrojo. El invierno será duro.'},
+  {acto:3, tit:'Repartir lo que hay', tipo:'eleccion',
+   txt:'Con la despensa contada, la familia se reúne junto al fuego. Hay que decidir cómo repartir el alimento hasta la próxima siembra.',
+   ops:[
+    {t:'⚖️ Racionar todos por igual', atr:'fe',
+     e:'{n} propone porciones iguales y predica con el ejemplo sirviéndose al último. Nadie protesta; el hambre compartida une más que el pan.',
+     p:'El acuerdo se cumple… con algún gruñido de estómago y de carácter. Las semanas pasan lentas, pero pasan.',
+     f:'Las porciones iguales no calman los ánimos desiguales. Una discusión agria deja la cena fría y los corazones también.'},
+    {t:'🤲 Dar más a los más débiles', atr:'carisma', tag:'animar',
+     e:'{n} habla con tanta ternura de los pequeños y los cansados que nadie discute ceder su parte. Esa noche, el guiso sabe a algo parecido al jardín.',
+     p:'Los fuertes aceptan comer menos, aunque a alguno se le nota el sacrificio en la cara. El amor cuesta, y se paga.',
+     f:'"¿Y quién decide quién es débil?" La pregunta enciende una discusión que ni {n} logra apagar del todo. Se reparte, pero en silencio.'}]},
+  {acto:3, tit:'El altar de piedra', tipo:'tirada', atr:'fe', pref:'lider',
+   txt:'Ha pasado un año. Sobre la loma, la familia apila piedras sin labrar para un altar. {n} presenta lo mejor de la primera cosecha como ofrenda.',
+   e:'El humo sube recto hacia el cielo del atardecer. Nadie habla; no hace falta. Fuera del jardín también se puede caminar con Dios.',
+   p:'Las palabras de {n} tropiezan con el nudo en la garganta: gratitud y nostalgia mezcladas. La ofrenda sube; las lágrimas también.',
+   f:'El viento apaga dos veces el fuego y el desánimo amenaza con apagar el resto. A la tercera, la llama prende… como la esperanza: costosa, pero encendida.'}],
+ epilogo:'El primer año fuera del Edén ha terminado. Hay un campo sembrado, un refugio firme, un rebaño pequeño y un altar sobre la loma.\n\n{lista}\n\nLa puerta del jardín quedó atrás, pero la promesa de Génesis 3:15 camina con ustedes. La senda continúa.'},
+
+/* ---------- 2. EL ARCA ---------- */
+{id:'arca', ico:'⛵', color:'#6b93b5', nom:'El Arca', cita:'Génesis 6 – 8',
+ desc:'La familia de Noé construye el arca mientras el mundo se burla.',
+ nomM:['Sem','Cam','Jafet','Noé'], nomF:['Ema','Noela','Raquel','Sedeqa'],
+ intro:'"Hazte un arca de madera resinosa…" Las medidas están dadas: 300 codos de largo, tres pisos, una puerta. Alrededor, un mundo violento que ríe. Dentro de la familia, un solo propósito.',
+ escenas:[
+  {acto:1, tit:'Madera resinosa', tipo:'tirada', atr:'fuerza', tag:'construir',
+   txt:'Los árboles elegidos son gigantes. {n} organiza la tala y el arrastre de los troncos hasta el astillero improvisado.',
+   e:'Cuerdas, rodillos y buen pulso: los troncos llegan alineados como soldados. El esqueleto del arca empieza a dibujarse contra el cielo.',
+   p:'Los troncos llegan, pero uno rueda de más y aplasta las estacas del taller. Nada que no se repare… con medio día perdido.',
+   f:'Una cuerda revienta y el tronco mayor se desliza cuesta abajo hasta el barranco. Habrá que talar de nuevo, con más maña y menos prisa.'},
+  {acto:1, tit:'La viga y la brea', tipo:'tirada', atr:'ingenio', tag:'construir', pref:'constructor',
+   txt:'Una viga maestra cruje bajo el peso del segundo piso. {n} debe reforzarla y calafatear las juntas con brea por dentro y por fuera, como fue mandado.',
+   e:'{n} idea un refuerzo cruzado que deja la viga más firme que el roble original. La brea sella cada junta: ni una gota pasará.',
+   p:'La viga queda firme, pero la brea escasea y hay que recorrer medio valle para conseguir más. El sol no espera.',
+   f:'El refuerzo cede con un crujido que se oye hasta el pueblo. Nadie se lastima, pero las risas de los curiosos duelen casi como un golpe.'},
+  {acto:1, tit:'Los que ríen', tipo:'eleccion',
+   txt:'Una multitud se junta a mirar "la locura": un barco enorme a días del mar. Llueven burlas, y alguien lanza algo más que palabras.',
+   ops:[
+    {t:'🗣️ Responder con calma y dar testimonio', atr:'carisma', tag:'animar',
+     e:'{n} baja del andamio, se limpia las manos y habla sin alzar la voz: del diluvio que viene y de la puerta que sigue abierta. La mayoría ríe… pero algunos se van pensativos.',
+     p:'Las palabras serenas de {n} apagan las burlas por hoy. Mañana volverán, pero hoy se trabaja en paz.',
+     f:'Cada respuesta de {n} es recibida con más carcajadas. "¡El profeta del barco seco!" El corazón pesa más que los troncos.'},
+    {t:'🔨 Seguir trabajando sin responder', atr:'fe',
+     e:'{n} da la señal y los martillos responden por la familia. Hay algo en esa constancia silenciosa que incomoda a los burlones más que cualquier sermón; poco a poco se dispersan.',
+     p:'El trabajo continúa bajo la lluvia de burlas. Duelen, pero los clavos entran igual de derechos.',
+     f:'Un mozalbete trepa al andamio a hacer gracia, resbala, y hay que rescatarlo del barril de brea. Medio día perdido y la brea, arruinada.'}]},
+  {acto:2, tit:'La despensa del mundo', tipo:'tirada', atr:'ingenio', pref:'escriba',
+   txt:'"Recoge de todo alimento y almacénalo." {n} calcula raciones para la familia y para cada clase de animal: grano, heno, frutos secos, agua.',
+   e:'Tablillas, cuentas y previsión: cada bodega queda rotulada y cada ración, prevista. Hasta las jirafas tendrán su medida justa.',
+   p:'Los números cierran… apretados. Habrá comida para todos si nadie repite plato. {n} anota: "racionar desde el día uno".',
+   f:'Un error de cálculo deja el heno corto. Toca segar a marchas forzadas los últimos días, con la espalda doblada y el cielo oscureciendo.'},
+  {acto:2, tit:'Llegan de dos en dos', tipo:'tirada', atr:'fe', tag:'campo', pref:'pastor',
+   txt:'Y entonces sucede: por el valle bajan animales de toda especie, de dos en dos, guiados por una mano invisible. A {n} le toca acomodarlos y calmarlos dentro del arca.',
+   e:'{n} camina entre leones y palomas como quien camina entre ovejas. Cada animal encuentra su sitio; el arca se llena de un rumor tranquilo.',
+   p:'Casi todos entran en paz… menos los monos, que arman revuelo en la bodega del grano. Recuperar el orden cuesta una tarde entera.',
+   f:'Un buey se planta en la rampa y detrás de él se atasca media creación. Empujones, mugidos y un dedo machucado después, todos están dentro. Todos.'},
+  {acto:2, tit:'La última noche', tipo:'tirada', atr:'fe', pref:'lider',
+   txt:'El cielo se cierra como nunca. Afuera, las voces ya no se burlan: ahora golpean el casco. {n} reúne a la familia adentro para sostener la calma antes de que Dios cierre la puerta.',
+   e:'{n} habla de la promesa y no del miedo. Cuando la puerta se cierra —sin que mano humana la toque—, adentro hay paz. Afuera empieza la lluvia.',
+   p:'Las manos tiemblan, las voces no. La familia se abraza cuando el primer trueno sacude las cuadernas.',
+   f:'Los golpes en el casco arrancan lágrimas a los más jóvenes. {n} tarda en encontrar las palabras… hasta que la puerta se cierra sola, y el hecho habla por todos.'},
+  {acto:3, tit:'Agua adentro', tipo:'tirada', atr:'agilidad', tag:'construir',
+   txt:'Día veinte. El arca cabecea en un mar sin orillas y un hilo de agua serpentea en la bodega baja: una junta llora. {n} baja con brea caliente y estopa.',
+   e:'{n} encuentra la junta floja, la calafatea en plena sacudida y sale de la bodega empapado y sonriente. Ni una gota más.',
+   p:'La fuga queda sellada, pero el vaivén lanza a {n} contra un poste. El chichón durará más que la gotera.',
+   f:'El sello no agarra a la primera y el agua moja tres sacos de grano. A la segunda queda firme, pero habrá que secar grano durante días.'},
+  {acto:3, tit:'La cierva enferma', tipo:'tirada', atr:'ingenio', tag:'campo', pref:'cuidador',
+   txt:'Una cierva deja de comer y tiembla en su cubículo. Si el mal se extiende entre los animales, el arca entera peligra. {n} la atiende con lo que hay a bordo.',
+   e:'Agua tibia, hierbas de la despensa y noches en vela: la cierva se levanta al tercer día y come de la mano de {n}. El arca respira.',
+   p:'La cierva sana, pero contagia al macho, y las noches de vela se duplican. {n} termina agotado y victorioso.',
+   f:'Nada parece funcionar y hay que aislarla en la proa. Sobrevive apenas, flaca como una rama, y el susto deja a todos mirando de reojo a los demás animales.'},
+  {acto:3, tit:'El encierro', tipo:'eleccion',
+   txt:'Van meses a bordo. La misma madera, los mismos rostros, el mismo horizonte de agua. El desánimo se pasea por los pasillos como un animal más. ¿Cómo lo combate la familia?',
+   ops:[
+    {t:'🎶 Cantar juntos cada atardecer', atr:'carisma', tag:'animar',
+     e:'{n} arranca el primer canto y las voces se suman una a una. El arca entera —hasta los lobos— parece escuchar. El desánimo no sobrevive a la música.',
+     p:'Los cantos ayudan, aunque algunas noches las voces suenan más a deber que a gozo. Aun así, nadie falta.',
+     f:'El primer intento suena tan desafinado que provoca risas… y las risas, sin querer, terminan siendo el mejor remedio.'},
+    {t:'📜 Relatar las promesas de Dios', atr:'fe', tag:'saber',
+     e:'Cada noche, {n} relata: el Edén, la promesa de la descendencia, el pacto que vendrá. Los pequeños se duermen soñando con el arcoíris antes de saber que existirá.',
+     p:'Los relatos sostienen el ánimo, aunque las preguntas difíciles ("¿y los de afuera?") dejan silencios largos que solo el tiempo cerrará.',
+     f:'A mitad del relato, el balanceo marea al auditorio entero. La sesión termina antes de tiempo… se repondrá mañana, con el mar más calmado.'}]},
+  {acto:3, tit:'Ararat', tipo:'tirada', atr:'fe', pref:'lider',
+   txt:'Un crujido distinto: madera contra roca. El arca reposa. La paloma vuelve con una hoja de olivo y llega el día de abrir la puerta. {n} guía a la familia afuera, hacia un mundo lavado.',
+   e:'El primer paso sobre tierra firme tambalea y arranca risas. Levantan un altar, y sobre las nubes que se retiran aparece el arcoíris: el pacto, escrito en el cielo.',
+   p:'La montaña recibe a la familia con viento helado y piernas de marinero. Pero el altar se levanta, y el arcoíris no necesita buen clima para brillar.',
+   f:'La rampa cede en el último tramo y el desembarco es un tropel de animales y personas rodando ladera abajo. Nadie se lastima; todos ríen; el arcoíris los encuentra despeinados y vivos.'}],
+ epilogo:'Un año y diez días después de entrar, la familia pisa un mundo nuevo. El arca queda en la montaña como testigo de madera.\n\n{lista}\n\n"Mientras la tierra permanezca, no cesarán siembra y cosecha…" (Gén 8:22). El arcoíris sella la promesa. La senda continúa.'},
+
+/* ---------- 3. TIERRA PROMETIDA ---------- */
+{id:'tierra', ico:'🎺', color:'#c1793b', nom:'La Tierra Prometida', cita:'Josué 1 – 6',
+ desc:'Espías en Jericó, el cruce del Jordán y la caída de la ciudad.',
+ nomM:['Salmón','Otniel','Segub','Yair'], nomF:['Acsa','Noa','Tirsa','Hogla'],
+ intro:'"Sé valiente y fuerte." Cuarenta años de desierto terminan aquí, frente al Jordán crecido. Al otro lado, Jericó cierra sus puertas. Josué necesita ojos dentro de esa ciudad.',
+ escenas:[
+  {acto:1, tit:'Las puertas de Jericó', tipo:'tirada', atr:'agilidad', tag:'sigilo', pref:'explorador',
+   txt:'Vestidos de comerciantes, hay que cruzar las puertas de Jericó entre carros y camellos, bajo la mirada de los guardias. {n} va al frente del grupo.',
+   e:'{n} elige el momento exacto: detrás de una caravana ruidosa de especias. Los guardias ni parpadean. Están dentro.',
+   p:'Un guardia los detiene… y los deja pasar tras revisar los bultos, quedándose "de impuesto" con un paño fino. Dentro, pero más pobres.',
+   f:'"¿De dónde dicen que vienen?" Las respuestas dudan y los guardias los siguen con la vista. Están dentro, pero marcados: habrá que moverse rápido.'},
+  {acto:1, tit:'Oídos en el mercado', tipo:'tirada', atr:'ingenio', tag:'saber', pref:'escriba',
+   txt:'En el mercado se habla de todo: del río crecido, de los muros, del miedo. {n} conversa, compra, escucha y arma el mapa invisible de la ciudad.',
+   e:'Entre higos y lana, {n} lo obtiene todo: turnos de guardia, estado de las puertas y una verdad enorme: "el corazón de esta ciudad ya se derritió de miedo" (Jos 2:11).',
+   p:'La información llega a medias: los turnos de la muralla norte, sí; los de la puerta, no. Suficiente para empezar, poco para confiarse.',
+   f:'Una pregunta de más y un mercader entrecierra los ojos: "Ustedes preguntan mucho para vender tan poco." Es hora de desaparecer entre la multitud.'},
+  {acto:1, tit:'La cuerda escarlata', tipo:'tirada', atr:'agilidad', tag:'sigilo',
+   txt:'Los soldados del rey peinan la ciudad: alguien los delató. Rahab los esconde bajo los tallos de lino de su azotea y, de noche, ofrece su ventana sobre la muralla. {n} baja primero por la cuerda.',
+   e:'La cuerda escarlata apenas se balancea. Uno a uno bajan como sombras y ganan los montes. Detrás queda la promesa: esa misma cuerda salvará la casa de Rahab.',
+   p:'A mitad del descenso, una antorcha dobla la esquina de la muralla. Quedan colgados, inmóviles, una eternidad… hasta que la luz pasa. Palmas ardidas, misión viva.',
+   f:'La cuerda cede un tramo y {n} cae los últimos codos sobre un tejado de cañas. El estrépito despierta perros y voces: la huida a los montes es una carrera con el corazón en la boca.'},
+  {acto:2, tit:'Ordenar el campamento', tipo:'tirada', atr:'carisma', tag:'animar', pref:'lider',
+   txt:'De vuelta, el informe enciende el campamento: "¡Dios ya nos dio la tierra!" Ahora hay que organizar a miles de familias para cruzar el Jordán detrás del Arca. {n} coordina las tribus.',
+   e:'Tribu por tribu, {n} asigna orden, distancia y señales. Cuando suena la voz de mando, un pueblo entero se mueve como un solo hombre.',
+   p:'El orden se logra… salvo por los rebaños de Rubén, que se mezclan con los de Gad y arman un nudo de balidos. Se resuelve, con paciencia y polvo.',
+   f:'Las familias impacientes se adelantan y la columna se desarma. Hay que detener todo, volver a formar y empezar de nuevo bajo el sol del mediodía.'},
+  {acto:2, tit:'El río detenido', tipo:'tirada', atr:'fe',
+   txt:'Los sacerdotes tocan el agua… y el Jordán se corta río arriba: un muro líquido detenido por la mano de Dios. El lecho queda seco, pero cruzar entre esas paredes de agua exige un corazón firme. {n} ayuda a pasar a los pequeños y a los ancianos.',
+   e:'{n} cruza una y otra vez, cargando niños que miran el muro de agua con la boca abierta. Su calma se contagia; el pueblo entero pasa cantando.',
+   p:'Una anciana se paraliza a mitad del cauce, y {n} tarda en convencerla de dar un paso más. Lo logra… justo cuando las rodillas de ambos ya no daban para más.',
+   f:'Un carro se atasca en el lodo del lecho y el miedo cunde: "¡el agua volverá!" {n} empuja con otros hasta sacarlo, gritando por encima del pánico. El agua no vuelve. La fe, sí.'},
+  {acto:2, tit:'Doce piedras', tipo:'tirada', atr:'fuerza', tag:'construir',
+   txt:'"Tomen doce piedras del cauce, una por tribu." A {n} le toca cargar la suya desde el lecho del río hasta Guilgal, para el memorial de las generaciones.',
+   e:'{n} elige una piedra enorme, la carga al hombro y la planta la primera. "Cuando sus hijos pregunten qué significan estas piedras…" — ya hay respuesta.',
+   p:'La piedra pesa más a cada paso y hay que descansar dos veces, pero llega a Guilgal. Torcida quedó; testimonio es.',
+   f:'A medio camino, la piedra resbala y por poco aplasta un pie. Entre dos la levantan de nuevo. El memorial también guardará esta historia… aunque nadie la cuente.'},
+  {acto:3, tit:'La marcha en silencio', tipo:'tirada', atr:'fe', pref:'pastor',
+   txt:'La orden es extraña: marchar alrededor de Jericó una vez al día, en silencio absoluto, seis días. Desde la muralla llueven insultos y provocaciones. {n} marcha en la fila exterior, la más expuesta.',
+   e:'Escupitajos, burlas, hasta cáscaras podridas: nada arranca una palabra de {n}. Su silencio es tan firme que, al cuarto día, los de la muralla ya no ríen: miran.',
+   p:'Al quinto día, un insulto contra las madres de Israel casi rompe el silencio de {n}. Casi. Los dientes apretados también son obediencia.',
+   f:'Una piedra lanzada desde lo alto roza a {n}, que trastabilla y suelta un grito ahogado. La fila se detiene un instante eterno… y sigue. El silencio se recompone, más caro y más valioso.'},
+  {acto:3, tit:'El séptimo día', tipo:'eleccion',
+   txt:'Séptimo día: siete vueltas. Al final, las trompetas y el grito. Josué asigna posiciones. ¿Dónde sirve el grupo?',
+   ops:[
+    {t:'🎺 Junto a los sacerdotes y las trompetas', atr:'fe',
+     e:'Siete vueltas con el sonido del cuerno vibrando en el pecho. Al grito del pueblo, la muralla no se derrumba: se desploma sobre sí misma, como si le quitaran los cimientos. {n} lo ve desde primera fila: esto es obra de Dios.',
+     p:'El polvo de la muralla caída envuelve al grupo entero; salen tosiendo, cubiertos de blanco, incrédulos y vivos.',
+     f:'Con el estruendo, {n} queda aturdido unos instantes, oídos zumbando, mientras el mundo cambia de forma. Unas manos amigas lo levantan: la ciudad está abierta.'},
+    {t:'🛡️ Cubrir los flancos de la retaguardia', atr:'agilidad', tag:'sigilo',
+     e:'{n} vigila cada sombra durante las siete vueltas. Cuando el muro cae, su sección de la columna entra en perfecto orden, sin un solo rezagado.',
+     p:'Un grupo de curiosos armados merodea la retaguardia; {n} los disuade con presencia y señas, sin romper la marcha. Tenso, pero limpio.',
+     f:'En el caos del derrumbe, dos jóvenes de la columna se extravían y {n} pierde un tiempo precioso en hallarlos entre el polvo. Los encuentra. Nadie falta.'}]},
+  {acto:3, tit:'La casa de la cuerda escarlata', tipo:'tirada', atr:'agilidad', pref:'explorador',
+   txt:'Una promesa pendiente: en el sector de la muralla que quedó en pie cuelga la cuerda escarlata. {n} guía al grupo entre los escombros para sacar a Rahab y a toda su familia.',
+   e:'{n} encuentra la casa intacta, como una isla en el derrumbe. Rahab abre la puerta con la familia reunida y lista: "Sabía que vendrían." Todos salen a salvo, hasta el abuelo y el gato.',
+   p:'La escalera de la casa está bloqueada por cascotes; hay que sacar a los pequeños por la ventana, uno a uno, contra reloj. Se logra. La promesa se cumple completa.',
+   f:'El humo y el polvo desorientan al grupo y los minutos pesan como años. Cuando por fin dan con la cuerda escarlata, {n} carga en brazos a la abuela de Rahab el último tramo. Cansados, tiznados… y fieles a la palabra dada.'}],
+ epilogo:'Jericó ha caído sin que Israel empujara una sola piedra de su muralla. Rahab y su familia viven en medio del pueblo — y de su línea nacerá, siglos después, el Mesías (Mat 1:5).\n\n{lista}\n\n"Ni una sola palabra de todas las buenas promesas de Jehová falló" (Jos 21:45). La senda continúa.'},
+
+/* ---------- 4. BABILONIA ---------- */
+{id:'babilonia', ico:'🏛️', color:'#9a7cbf', nom:'Caminos de Babilonia', cita:'2 Reyes 25 · Daniel 1 · Esdras 1–3',
+ desc:'La ida al destierro… o el regreso para reconstruir el templo. El grupo elige.',
+ nomM:['Azarías','Hananí','Serebías','Meremot'], nomF:['Susana','Yehudit','Ana','Noadías'],
+ intro:'Dos caminos cruzan el mismo desierto, con setenta años de distancia: el que va de Jerusalén en llamas hacia Babilonia… y el que vuelve de Babilonia hacia una Jerusalén en ruinas. Elijan su camino.',
+ ruta:true,
+ rutas:[
+  {t:'⛓️ La ida — el destierro (607 a.e.c.)', clave:'A'},
+  {t:'🏠 El regreso — reconstruir (537 a.e.c.)', clave:'B'}],
+ escenasA:[
+  {acto:1, tit:'La larga marcha', tipo:'tirada', atr:'fuerza',
+   txt:'Jerusalén humea a sus espaldas. Por delante, semanas de marcha hacia Babilonia. Entre los cautivos hay ancianos y niños que ya no pueden más. {n} carga lo que otros ya no pueden cargar.',
+   e:'{n} reparte pesos, improvisa una angarilla con dos lanzas prestadas y marca un paso que hasta los pequeños aguantan. Su columna no pierde a nadie.',
+   p:'Los hombros de {n} pagan el precio de cargar doble. Al llegar al campamento nocturno cae rendido… pero todos llegaron.',
+   f:'El calor vence a {n} a media tarde y otros deben cargarlo a él. La lección duele más que la insolación: también los fuertes necesitan ayuda.'},
+  {acto:1, tit:'Fiebre en la caravana', tipo:'tirada', atr:'ingenio', pref:'cuidador',
+   txt:'Una fiebre corre entre los cautivos y los guardias solo se encogen de hombros. Con agua racionada y sin hierbas conocidas, {n} improvisa cuidados en los altos del camino.',
+   e:'Paños húmedos por turnos, sombra bien administrada y caldo de lo que hay: la fiebre cede sin llevarse a nadie. Hasta un guardia trae, disimuladamente, un odre de agua extra.',
+   p:'Los enfermos mejoran, pero {n} termina contagiado y hace el siguiente tramo tiritando sobre un carro. Sanará; la caravana ya lo hizo.',
+   f:'La fiebre se extiende y la caravana debe detenerse un día entero, ganándose gritos de los guardias. Se supera, a fuerza de vigilias que dejan a todos con los ojos hundidos.'},
+  {acto:2, tit:'La mesa del rey', tipo:'tirada', atr:'ingenio', tag:'saber', pref:'escriba',
+   txt:'En Babilonia, los jóvenes de Judá son llevados al palacio para ser educados. La mesa ofrece manjares del rey… que la Ley no permite. Como Daniel, {n} debe proponer una alternativa con tacto (Dan 1:8).',
+   e:'"Pruébanos diez días con legumbres y agua." La propuesta de {n} es tan medida y respetuosa que el funcionario acepta. Diez días después, sus rostros lucen mejor que los de todos.',
+   p:'El funcionario acepta a regañadientes y a escondidas de sus superiores: "Si esto me cuesta la cabeza…" Habrá que cuidar los detalles cada día.',
+   f:'La primera propuesta suena a desprecio y el funcionario se ofende. Toca esperar, ganarse su confianza con semanas de conducta impecable… y volver a intentarlo mejor.'},
+  {acto:2, tit:'El idioma y la corte', tipo:'tirada', atr:'carisma', tag:'ciudad',
+   txt:'Arameo, protocolo, escritura cuneiforme: la corte exige todo y observa todo. {n} debe destacar en el examen ante los oficiales sin ocultar quién es ni a quién sirve.',
+   e:'{n} responde en un arameo pulido y, preguntado por su Dios, habla con tal claridad que el oficial anota algo largo en su tablilla. Respeto ganado sin negociar la fe.',
+   p:'El examen sale bien; la conversación posterior, regular: un cortesano se burla del "Dios invisible". {n} calla a tiempo. Hay batallas que se ganan no peleándolas.',
+   f:'Los verbos arameos traicionan a {n} en plena presentación y las risitas corren por la sala. Habrá más noches de estudio a la luz de la lámpara.'},
+  {acto:2, tit:'La imagen de oro', tipo:'tirada', atr:'fe',
+   txt:'Suena la música y toda la llanura se postra ante la imagen de oro. Todos… menos el grupo. Los ojos de los delatores brillan. {n} permanece de pie, a la vista de todos.',
+   e:'Rodillas firmes, mirada al frente. {n} y los suyos quedan de pie como columnas en un campo segado. Que venga lo que venga: hay cosas que no se negocian.',
+   p:'Las piernas de {n} tiemblan como cañas… pero no se doblan. Un oficial conocido pasa de largo fingiendo no verlos. Esta vez.',
+   f:'Los delatores los señalan a gritos y los guardias los arrastran ante el trono esa misma tarde. De pie siguen; el precio empieza a cobrarse.'},
+  {acto:3, tit:'La prueba pública', tipo:'tirada', atr:'fe', pref:'lider',
+   txt:'La acusación llega al rey: "Estos judíos no sirven a tus dioses." La sala del trono en silencio, el castigo listo. {n} responde por el grupo (como en Dan 3:16-18): con respeto, sin ceder.',
+   e:'"Nuestro Dios puede librarnos. Pero aunque no lo haga, no serviremos a tus dioses." La entereza de {n} deja al rey largo rato en silencio… y la sentencia se suspende. En Babilonia se empieza a hablar del Dios de Judá.',
+   p:'La voz de {n} se quiebra a la mitad… y se rehace. El rey, entre furioso y admirado, los degrada de la corte pero les perdona la vida. La fe queda intacta; la carrera palaciega, no. Buen cambio.',
+   f:'La sentencia se ejecuta: prisión y raciones de castigo. Y sin embargo, cada amanecer los encuentra orando junto a la ventana, como Daniel. Los guardias lo notan. Todos lo notan. Hay victorias que se ganan perdiendo.'}],
+ escenasB:[
+  {acto:1, tit:'La lista de Ciro', tipo:'tirada', atr:'ingenio', tag:'saber', pref:'escriba',
+   txt:'El decreto de Ciro lo cambia todo: los que quieran pueden volver. {n} organiza la caravana familiar y el inventario de los utensilios sagrados que el rey devuelve (Esd 1:7-11).',
+   e:'Cada copa, cada fuente de oro y plata queda contada, envuelta y asignada a un portador. La lista de {n} es tan precisa que los oficiales persas la copian para sus archivos.',
+   p:'El inventario cierra… tras descubrir a tiempo que dos fuentes de plata habían quedado en un almacén equivocado. Un día de retraso; ningún faltante.',
+   f:'Los números no cuadran y hay que recontar todo ante un funcionario impaciente. Aparece el error (una tablilla mal leída), pero la caravana parte al alba siguiente, con sueño y sin margen.'},
+  {acto:1, tit:'El vado del gran río', tipo:'tirada', atr:'agilidad', pref:'explorador',
+   txt:'El primer gran río del camino baja crecido. Carros, ancianos, niños y utensilios sagrados deben cruzar. {n} busca el vado y guía el paso.',
+   e:'{n} encuentra un vado de grava firme, tiende una cuerda de orilla a orilla y el cruce entero parece un desfile. Ni un bulto mojado.',
+   p:'El vado sirve, pero un carro se atasca al final y hay que descargarlo a hombros, con el agua a la cintura. Todo cruza; todo gotea.',
+   f:'La corriente arrastra dos fardos de provisiones que se recuperan río abajo, embarrados. Nadie se pierde, pero esa noche la cena es escasa y la ropa, un tendedero.'},
+  {acto:2, tit:'El peaje de los bandidos', tipo:'tirada', atr:'carisma', pref:'lider',
+   txt:'La caravana no lleva escolta: "La mano de nuestro Dios está sobre los que lo buscan", se dijo al rey (Esd 8:22). En un desfiladero, hombres armados cierran el paso y exigen "peaje". {n} se adelanta a hablar.',
+   e:'{n} habla sin miedo y sin arrogancia: de dónde vienen, a qué van, y de quién los guarda. Algo en esa serenidad desarma más que las armas. Los hombres se apartan; uno, incluso, indica el mejor camino.',
+   p:'La palabra no basta sola: cuesta unos sacos de grano "de regalo". Caro, pero más barato que la sangre. La caravana pasa completa.',
+   f:'La negociación se tensa y los bandidos revuelven los carros… sin hallar el oro, oculto bajo el grano desde Babilonia (previsión bendita). Se llevan provisiones; la caravana se lleva la lección y sigue.'},
+  {acto:2, tit:'Enfermedad en el campamento', tipo:'tirada', atr:'ingenio', pref:'cuidador',
+   txt:'A dos meses de marcha, una fiebre de aguas malas recorre las tiendas. {n} organiza el cuidado: separar el agua, hervir, velar a los débiles.',
+   e:'{n} impone orden de campaña: agua hervida, enfermos a la sombra, sanos en turnos. En una semana la fiebre es solo un mal recuerdo y una buena costumbre nueva.',
+   p:'La fiebre cede, pero deja a varios tan débiles que la marcha se hace a medio paso durante días. Lentos, pero juntos.',
+   f:'El brote obliga a acampar una semana entera junto a un pozo amargo. Se pierde tiempo y peso, no personas. Cuando la caravana reanuda la marcha, hasta el desierto parece aliviado.'},
+  {acto:3, tit:'Piedra sobre piedra', tipo:'tirada', atr:'fuerza', tag:'construir', pref:'constructor',
+   txt:'Jerusalén, por fin… y es un montón de escombros con memoria. Antes que casas, el altar: hay que despejar el monte del templo y asentar las primeras piedras (Esd 3:2, 3). {n} dirige el trabajo.',
+   e:'Bajo las manos de {n}, el caos de cascotes se vuelve explanada y las piedras del altar encuentran su asiento exacto, sobre las bases antiguas. Está donde debe estar.',
+   p:'El trabajo avanza… hasta dar con una cisterna oculta bajo los escombros que casi traga un buey. Se rodea, se señaliza, se sigue. El altar se asienta al atardecer.',
+   f:'Una palanca se quiebra y la piedra mayor cae de canto, astillándose. Hay que buscar otra digna entre las ruinas — y aparece: una piedra del templo viejo. Nadie lo dice en voz alta, pero todos lo sienten: hasta los escombros vuelven a casa.'},
+  {acto:3, tit:'Lágrimas y júbilo', tipo:'tirada', atr:'fe',
+   txt:'El altar está listo. Se ofrece el primer sacrificio en setenta años, y el pueblo estalla: los jóvenes gritan de alegría y los ancianos, que recuerdan el templo anterior, lloran tan fuerte que nadie distingue un sonido del otro (Esd 3:12, 13). {n} eleva la acción de gracias.',
+   e:'La voz de {n} se abre paso entre el llanto y el júbilo, y por un momento ambos se vuelven una sola cosa: gratitud. El humo sube desde el mismo monte de Abrahán y de Salomón. Han vuelto a casa.',
+   p:'{n} apenas puede hablar; las palabras salen rotas, mezcladas con lágrimas propias. Nadie lo nota: hoy todas las voces están rotas, y todas dicen lo mismo.',
+   f:'El nudo en la garganta gana la primera batalla y otro debe comenzar el canto… hasta que la voz de {n} se suma, y luego todas. No importa quién empieza la alabanza; importa que no termine.'}],
+ epilogo:'{rutaFin}\n\n{lista}\n\n"Los que siembran con lágrimas, con júbilo cosecharán" (Sal 126:5). La senda continúa.',
+ finA:'En tierra extraña, sin templo y sin libertad, el grupo demostró que la fe no depende del lugar sino del corazón. En los archivos de Babilonia — y en otros archivos más altos — quedó escrito que en Judá hay un Dios al que su pueblo no cambia por nada.',
+ finB:'Setenta años después del fuego, vuelve a subir humo del monte del templo: pero esta vez es humo de gratitud. Quedan murallas por levantar y vecinos que se opondrán, pero el altar está en pie, y con él, el pueblo.'},
+
+/* ---------- 5. MISIÓN ---------- */
+{id:'mision', ico:'⚓', color:'#4fa394', nom:'Más allá de Israel', cita:'Hechos 13 – 28',
+ desc:'Misioneros del siglo I llevan las buenas nuevas a una ciudad gentil.',
+ nomM:['Silas','Lucio','Timoteo','Tito'], nomF:['Lidia','Febe','Priscila','Dámaris'],
+ intro:'Antioquía despide al grupo con oración y provisiones. El destino: Filipos, colonia romana al otro lado del mar. El equipaje: un oficio en las manos, las Escrituras en la memoria y unas buenas nuevas que no caben en ningún fardo.',
+ escenas:[
+  {acto:1, tit:'Un barco hacia Macedonia', tipo:'tirada', atr:'carisma', tag:'ciudad', pref:'lider',
+   txt:'En el puerto, los capitanes cobran caro y desconfían de pasajeros pobres. {n} negocia el pasaje del grupo ofreciendo trabajo a bordo a cambio de parte del precio.',
+   e:'{n} cierra trato con un capitán fenicio: pasaje por trabajo en cubierta y remiendo de velas — el oficio de hacer tiendas por fin da dividendos náuticos. Zarpan al alba.',
+   p:'El único capitán que acepta va cargado hasta la borda y hace tres escalas de más. Llegarán… tarde y oliendo a pescado en salmuera.',
+   f:'Dos capitanes se niegan y el tercero pide un precio absurdo. Toca esperar tres días en el puerto, trabajando en el mercado para no tocar el fondo común, hasta que aparece un barco honrado.'},
+  {acto:1, tit:'La tormenta', tipo:'tirada', atr:'fuerza',
+   txt:'A dos días de la costa, el cielo se vuelve de plomo y el mar, de montañas. El capitán grita órdenes; toda mano cuenta. {n} asegura la carga y ayuda a la tripulación (como en Hch 27).',
+   e:'{n} trinca la carga, refuerza la vela de tormenta y trabaja hombro a hombro con los marineros toda la noche. Al alba, el capitán le estrecha el brazo: "Tu Dios y tus manos, ambos sirven."',
+   p:'La carga queda firme, pero una ola barre la cubierta y {n} se salva agarrado a un cabo, tragando medio mar. Magullado y empapado, sigue en su puesto hasta el final.',
+   f:'Un fardo mal trincado rueda y golpea a {n} contra la borda. Los marineros lo ponen a salvo bajo cubierta, donde pasa la tormenta entre mareos… orando por los que siguen arriba. El barco resiste.'},
+  {acto:1, tit:'Calma tras la tempestad', tipo:'tirada', atr:'fe', pref:'pastor',
+   txt:'La tormenta pasó, pero el pasaje está deshecho: hay llantos, mercancía perdida y un marinero que jura no volver a embarcarse. {n} recorre la cubierta llevando calma y esperanza.',
+   e:'{n} escucha a cada uno, reparte el pan del grupo y termina contando, junto al mástil roto, quién es Aquel que calma mares. Esa noche, varios duermen en paz por primera vez… y preguntan más.',
+   p:'Las palabras ayudan a la mayoría; el marinero curtido solo gruñe. Pero al desembarcar, es él quien carga —sin que nadie se lo pida— el fardo más pesado del grupo.',
+   f:'El desánimo del pasaje es un muro… hasta que a {n} se le ocurre cantar bajito. Una voz se suma, luego otra. No fue un discurso lo que abrió la puerta: fue un salmo.'},
+  {acto:2, tit:'Oficio y hospedaje', tipo:'tirada', atr:'ingenio', tag:'ciudad',
+   txt:'Filipos: águilas romanas, foro de mármol y nadie que los conozca. Antes de predicar hay que comer: {n} busca trabajo y techo para el grupo — telas, tiendas, tinte de púrpura.',
+   e:'En el barrio de los tintoreros, {n} consigue taller y trastienda a cambio de trabajo fino. El oficio abre la puerta; la conducta la mantendrá abierta.',
+   p:'Hay trabajo, pero el techo es un altillo sobre las tinas de tinte: dormirán calientes y olerán a púrpura una semana entera. Nadie se queja… mucho.',
+   f:'Tres talleres cierran la puerta al acento extranjero. Al final los recibe una viuda a cambio de reparar su tejado primero. Trato justo: predicadores con las manos en la masa… y en las tejas.'},
+  {acto:2, tit:'Junto al río', tipo:'tirada', atr:'carisma', tag:'animar',
+   txt:'Sábado. Junto al río, fuera de la puerta, un grupo de mujeres se reúne a orar — entre ellas Lidia, comerciante de púrpura. {n} toma la palabra y anuncia las buenas nuevas (Hch 16:13, 14).',
+   e:'{n} habla del Mesías con tal claridad que Lidia no espera al final: "Si me consideran creyente, vengan a mi casa." La primera puerta de Europa se abre de par en par.',
+   p:'Las mujeres escuchan con interés y hacen preguntas difíciles; Lidia pide "seguir conversando el próximo sábado". La semilla está en tierra; falta la lluvia.',
+   f:'Los nervios enredan el arranque de {n}… hasta que deja el discurso y simplemente relata lo que ha visto. La sencillez logra lo que la elocuencia no: "vuelvan pronto", dicen. Y lo dicen de verdad.'},
+  {acto:2, tit:'Razonar en la sinagoga', tipo:'tirada', atr:'ingenio', tag:'saber', pref:'escriba',
+   txt:'En la sinagoga piden pruebas: "¿Dónde dicen las Escrituras que el Mesías debía sufrir?" Los rollos se abren sobre la mesa. {n} razona pasaje por pasaje (como en Hch 17:2, 3).',
+   e:'Isaías 53, el Salmo 22, Daniel 9: {n} hilvana las profecías como un tejedor sus hilos. Un anciano se quita las dudas como quien se quita un peso: "Toda mi vida leí esto… sin verlo."',
+   p:'La exposición convence a varios y enfurece a otros; el debate sube de tono hasta que el presidente de la sinagoga lo aplaza "para el próximo sábado". Hay puerta entreabierta y tormenta en el umbral.',
+   f:'Un opositor hábil enreda la discusión con preguntas trampa y {n} pierde el hilo ante todos. De camino a casa, repasa los rollos hasta la madrugada: la próxima vez, las respuestas estarán listas. Y habrá próxima vez.'},
+  {acto:3, tit:'La ciudad se agita', tipo:'tirada', atr:'fe',
+   txt:'El mensaje prospera… y toca intereses. Comerciantes del templo de la ciudad pierden clientela y agitan a la multitud: "¡Estos extranjeros alborotan nuestra ciudad!" La turba arrastra al grupo ante los magistrados. {n} mantiene al grupo sereno en medio del tumulto.',
+   e:'Golpes de la turba, gritos, acusaciones falsas: {n} responde con una calma que desconcierta más que cualquier defensa. Ni una palabra de odio sale del grupo. Los magistrados, presionados, los mandan a la cárcel "por alterar el orden": la serenidad, intacta, entra con ellos.',
+   p:'El miedo muerde y una rodilla tiembla, pero el grupo se mantiene unido y en silencio digno mientras los empujan a la cárcel. Perdieron la libertad por esta noche; la paz, no.',
+   f:'La turba zarandea al grupo y {n} recibe un golpe que lo dobla. Aun así, alcanza a sostener al más joven, que estaba por responder con los puños: "Así no." Entran a la cárcel doloridos… y limpios de culpa.'},
+  {acto:3, tit:'Cantos a medianoche', tipo:'tirada', atr:'carisma', tag:'animar',
+   txt:'Cepo en los pies, espalda dolorida, medianoche en la celda. Y entonces {n} hace lo impensable: empieza a cantar alabanzas (Hch 16:25). Los demás presos escuchan.',
+   e:'El canto de {n} llena el calabozo y corre por los pasillos. Los presos callan para oír; el carcelero se asoma sin entender qué clase de hombres cantan con los pies en el cepo. Cuando un temblor sacude los cimientos y abre las puertas, nadie huye — y esa noche, el carcelero y su casa preguntan cómo ser salvos.',
+   p:'La voz sale rota al principio, pero los himnos se sostienen hasta el alba. Un preso veterano murmura desde la oscuridad: "Cuando salgan, quiero saber de ese Dios." Saldrán. Y sabrá.',
+   f:'El primer canto se apaga en un calabozo hostil: "¡A dormir!" {n} baja la voz… y sigue, en un susurro que dura toda la noche. Al amanecer, el preso de la celda contigua tararea, sin saberlo, la melodía. Algo quedó sembrado.'},
+  {acto:3, tit:'Ante el magistrado', tipo:'eleccion',
+   txt:'Por la mañana, los magistrados ordenan soltarlos discretamente, como si nada hubiera pasado. Pero el arresto fue público e injusto, y la joven congregación quedaría marcada como criminal. ¿Cómo responde el grupo?',
+   ops:[
+    {t:'📜 Invocar los derechos de ciudadanía', atr:'ingenio', tag:'saber',
+     e:'"Nos azotaron públicamente sin juicio… ¿y ahora nos echan a escondidas?" El argumento legal de {n} (como en Hch 16:37) cae como un rayo: los magistrados, pálidos, vienen en persona a disculparse. La congregación queda públicamente limpia.',
+     p:'Los magistrados discuten, regatean y al final ofrecen una disculpa a medias, ante testigos suficientes. No es todo lo debido, pero la congregación ya no carga el estigma.',
+     f:'El magistrado más soberbio se niega a disculparse y solo concede un escrito seco de libertad. Menos de lo justo… pero por escrito. El documento protegerá a los hermanos cuando el grupo ya no esté.'},
+    {t:'🕊️ Aceptar la salida y despedirse en paz', atr:'fe',
+     e:'{n} decide que la mejor defensa de las buenas nuevas es no parecerse a sus acusadores. Salen en paz, pasan por casa de Lidia a fortalecer a los hermanos, y su mansedumbre se comenta en la ciudad más que el tumulto. Hay quien pregunta por ellos… para bien.',
+     p:'La salida discreta deja un sinsabor y algún hermano teme por el futuro. La reunión en casa de Lidia — oración, pan y planes — convierte el sinsabor en resolución.',
+     f:'Apenas salen, los mismos agitadores esparcen que "huyeron por culpables". Duele. Pero la conducta de la congregación, semana tras semana, desmiente el rumor mejor que mil pleitos. La verdad camina lento y llega lejos.'}]}],
+ epilogo:'En la playa, la despedida: abrazos, lágrimas y encargos. En Filipos queda una congregación pequeña y firme — Lidia y su casa, el carcelero y la suya, los del río y los de la sinagoga — al cuidado de los hermanos locales.\n\n{lista}\n\n"Y las buenas nuevas seguían extendiéndose y prevaleciendo" (compárese Hch 19:20). La senda continúa.'}
+];
+
+/* Frases de epílogo por arquetipo */
+const EPI_ARQ = {
+ lider:'guio al grupo cuando el camino se puso cuesta arriba',
+ constructor:'dejó obra firme donde antes no había nada',
+ explorador:'vio el peligro primero y el camino después',
+ escriba:'puso el conocimiento al servicio de todos',
+ cuidador:'sostuvo en pie los cuerpos y los ánimos',
+ pastor:'fue la calma del grupo, con dos patas o con cuatro'
+};
+
+
+/* ==================== VOZ: SÍNTESIS ==================== */
+let vozActiva=false, vozES=null;
+function cargarVoz(){
+  const voces=speechSynthesis.getVoices();
+  vozES = voces.find(v=>/es[-_]MX/i.test(v.lang)) || voces.find(v=>/^es/i.test(v.lang)) || null;
+}
+if('speechSynthesis' in window){ cargarVoz(); speechSynthesis.onvoiceschanged=cargarVoz; }
+else{ document.addEventListener('DOMContentLoaded',()=>{const b=document.getElementById('btnVoz');if(b)b.style.display='none';}); }
+function toggleVoz(){
+  vozActiva=!vozActiva;
+  const b=document.getElementById('btnVoz');
+  b.classList.toggle('on',vozActiva);
+  b.textContent = vozActiva? '🔊 Narrando':'🔊 Narrar';
+  if(!vozActiva){ speechSynthesis.cancel(); document.querySelectorAll('.msg.leyendo').forEach(m=>m.classList.remove('leyendo')); }
+  else{ const u=[...document.querySelectorAll('.msg.narrador')]; if(u.length) narrar(u[u.length-1].querySelector('.cuerpo').textContent,u[u.length-1]); }
+}
+function narrar(texto, elem){
+  if(!('speechSynthesis' in window)||!vozActiva) return;
+  speechSynthesis.cancel();
+  document.querySelectorAll('.msg.leyendo').forEach(m=>m.classList.remove('leyendo'));
+  const limpio=texto.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}]/gu,'').replace(/\s+/g,' ').trim();
+  if(!limpio) return;
+  const u=new SpeechSynthesisUtterance(limpio);
+  if(vozES) u.voice=vozES;
+  u.lang=vozES?vozES.lang:'es-ES'; u.rate=0.96;
+  if(elem){ elem.classList.add('leyendo'); u.onend=()=>elem.classList.remove('leyendo'); u.onerror=()=>elem.classList.remove('leyendo'); }
+  speechSynthesis.speak(u);
+}
+
+/* ==================== UTILIDADES ==================== */
+const f=n=>(n>=0?'+':'')+n;
+function irA(id){ document.querySelectorAll('.pantalla').forEach(p=>p.classList.remove('activa')); document.getElementById(id).classList.add('activa'); window.scrollTo(0,0); }
+function modTotal(j, atr, tag){
+  const a=ARQUETIPOS.find(x=>x.id===j.arqId);
+  const base=a.stats[atr]??0; let b=0; const notas=[];
+  if(tag==='construir'&&j.arqId==='constructor'){b+=1;notas.push('Manos hábiles +1')}
+  if(tag==='campo'&&j.arqId==='pastor'){b+=1;notas.push('Instinto del campo +1')}
+  if(tag==='sigilo'&&j.arqId==='explorador'){b+=1;notas.push('Ojo agudo +1')}
+  if(tag==='saber'&&j.arqId==='escriba'){b+=1;notas.push('Memoria fiel +1')}
+  if(tag==='animar'&&atr==='carisma'&&j.arqId==='lider'){b+=1;notas.push('Voz firme +1')}
+  if(tag==='ciudad'&&atr==='carisma'&&j.arqId==='pastor'){b-=1;notas.push('Desconfía de la ciudad −1')}
+  return {mod:base+b, notas};
+}
+
+/* ==================== RENDER COMPARTIDO ==================== */
+function addMsg(clase,quien,texto){
+  const log=document.getElementById('log');
+  const d=document.createElement('div'); d.className='msg '+clase;
+  d.innerHTML=`<div class="quien">${quien}</div><div class="cuerpo"></div>`;
+  d.querySelector('.cuerpo').textContent=texto;
+  log.appendChild(d); log.scrollTop=log.scrollHeight;
+  if(vozActiva && clase.includes('narrador') && texto.trim()) narrar(texto,d);
+  return d;
+}
+function pintarJugadores(turnoNombre){
+  const cont=document.getElementById('tiraJug'); cont.innerHTML='';
+  ESTADO.jugadores.forEach(j=>{
+    const a=ARQUETIPOS.find(x=>x.id===j.arqId); if(!a) return;
+    const d=document.createElement('div');
+    d.className='pj'+(j.nombre===turnoNombre?' turno':'')+(j.animo===0?' abatido':'')+(j.conectado===false?' desconectado':'');
+    const s=a.stats;
+    const yo = (j.id===MI_ID)?' 👈':'';
+    d.innerHTML=`<span class="ico">${a.ico}</span>
+      <div class="nom">${j.nombre}${yo}</div>
+      <div class="arq">${j.genero==='m'?a.m:a.f}</div>
+      <div class="vida">${'❤️'.repeat(j.animo)}${'🖤'.repeat(3-j.animo)}${j.animo===0?' 😵':''}</div>
+      <div class="st">F${f(s.fuerza)} A${f(s.agilidad)} I${f(s.ingenio)} C${f(s.carisma)} Fe${f(s.fe)}</div>`;
+    cont.appendChild(d);
+  });
+}
+
+/* ==================== ESTADO GLOBAL ====================
+   ROL: 'anfitrion' | 'jugador'
+   ESTADO es la fuente de verdad; vive en el anfitrión y se
+   transmite completo a los jugadores en cada cambio.       */
+let ROL=null, MI_ID=null, peer=null;
+let conexiones=[];   // (anfitrión) lista de DataConnection
+let connAnf=null;    // (jugador) conexión al anfitrión
+const ESTADO = {
+  fase:'lobby',        // lobby | eligiendo | jugando | fin
+  escId:null, rutaElegida:null,
+  jugadores:[],        // {id,nombre,genero,arqId,animo,conectado}
+  escIdx:-1, turnoIdx:0, actoActual:0,
+  banner:{ico:'',nom:''}, acto:'I',
+  log:[],              // historial de mensajes para reconstruir en clientes
+  ui:{modo:'espera', data:null}   // qué se le muestra al jugador en turno
+};
+function genId(){ return 'p'+Math.random().toString(36).slice(2,8); }
+function genCodigo(){ let s=''; for(let i=0;i<4;i++) s+='ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random()*24)]; return s; }
+const PREFIJO='sendasfe-';   // namespace para PeerJS
+
+/* ==================== ENVÍO/RECEPCIÓN ==================== */
+function anfDifundir(){   // el anfitrión manda el estado completo a todos
+  const paquete=JSON.stringify({t:'estado', estado:ESTADO});
+  conexiones.forEach(c=>{ try{ if(c.open) c.send(paquete); }catch(e){} });
+  render();  // el anfitrión también re-renderiza su vista
+}
+function jugEnviar(obj){  // el jugador manda una acción al anfitrión
+  try{ if(connAnf&&connAnf.open) connAnf.send(JSON.stringify(obj)); }catch(e){}
+}
+
+/* ==================== ANFITRIÓN: crear sala ==================== */
+function crearSala(){
+  ROL='anfitrion'; MI_ID='ANFITRION';
+  const codigo=genCodigo();
+  ESTADO.codigo=codigo;
+  peer=new Peer(PREFIJO+codigo, {debug:1});
+  peer.on('open', ()=>{
+    document.getElementById('codigoSala').textContent=codigo;
+    // el anfitrión elige escenario primero
+    irA('scrEscena');
+  });
+  peer.on('error', e=>{
+    if(e.type==='unavailable-id'){ // código en uso, reintenta
+      peer.destroy(); crearSala(); return;
+    }
+    alert('No se pudo crear la sala: '+e.type+'. Revisa tu conexión.');
+  });
+  peer.on('connection', conn=>{
+    conn.on('open', ()=>{
+      conexiones.push(conn);
+      conn.on('data', d=>anfRecibe(conn, JSON.parse(d)));
+      conn.on('close', ()=>anfDesconecta(conn));
+    });
+  });
+}
+function anfRecibe(conn, msg){
+  if(msg.t==='hola'){                 // jugador se presenta
+    // ¿reconexión de alguien que ya estaba?
+    let j=ESTADO.jugadores.find(x=>x.nombre.toLowerCase()===msg.nombre.toLowerCase());
+    if(j){ j.conectado=true; conn._pid=j.id; }
+    else{
+      const id=genId();
+      j={id, nombre:msg.nombre, genero:null, arqId:null, animo:3, conectado:true};
+      ESTADO.jugadores.push(j); conn._pid=id;
+    }
+    conn.send(JSON.stringify({t:'tuId', id:conn._pid, escId:ESTADO.escId, fase:ESTADO.fase}));
+    refrescarLobby(); anfDifundir();
+  }
+  else if(msg.t==='eligePj'){         // jugador confirma género+arquetipo
+    const j=ESTADO.jugadores.find(x=>x.id===msg.id);
+    if(j && !ESTADO.jugadores.some(o=>o.id!==j.id && o.arqId===msg.arqId)){
+      j.genero=msg.genero; j.arqId=msg.arqId;
+    }
+    refrescarLobby(); anfDifundir();
+  }
+  else if(msg.t==='tirada'){          // jugador tiró sus dados
+    anfProcesarTirada(msg.d1, msg.d2);
+  }
+  else if(msg.t==='repetir'){
+    anfRepetir();
+  }
+  else if(msg.t==='eleccion'){        // jugador eligió una opción
+    anfAplicarEleccion(msg.idx);
+  }
+}
+function anfDesconecta(conn){
+  const j=ESTADO.jugadores.find(x=>x.id===conn._pid);
+  if(j) j.conectado=false;
+  conexiones=conexiones.filter(c=>c!==conn);
+  refrescarLobby(); anfDifundir();
+}
+function refrescarLobby(){
+  const cont=document.getElementById('listaLobby');
+  document.getElementById('numConectados').textContent=ESTADO.jugadores.filter(j=>j.conectado).length;
+  cont.innerHTML=ESTADO.jugadores.map(j=>{
+    const a=j.arqId?ARQUETIPOS.find(x=>x.id===j.arqId):null;
+    const rol=a?(j.genero==='m'?a.m:a.f):'eligiendo…';
+    return `<div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--noche);border-radius:6px;border:1px solid var(--linea)">
+      <span>${a?a.ico:'⏳'} ${j.nombre}</span>
+      <span style="color:var(--arena);font-size:.85rem">${rol} ${j.conectado?'':'· desconectado'}</span></div>`;
+  }).join('');
+  const listos=ESTADO.jugadores.filter(j=>j.conectado).length;
+  document.getElementById('btnIniciarPartida').disabled = listos<3;
+  document.getElementById('estSala').textContent = listos<3? `Faltan ${3-listos} jugador(es) para poder empezar…` : '¡Listos para comenzar!';
+}
+
+/* ==================== ANFITRIÓN: elegir escenario ==================== */
+(function montarGridEsc(){
+  document.addEventListener('DOMContentLoaded',()=>{
+    const gridEsc=document.getElementById('gridEsc');
+    ESCENARIOS.forEach(e=>{
+      const b=document.createElement('button');
+      b.className='card-esc'; b.style.setProperty('--c',e.color);
+      b.innerHTML=`<span class="ico">${e.ico}</span><h3>${e.nom.toUpperCase()}</h3><div class="cita">${e.cita}</div><p>${e.desc}</p>`;
+      b.onclick=()=>{
+        ESTADO.escId=e.id; document.documentElement.style.setProperty('--acc',e.color);
+        document.getElementById('salaEsc').textContent=`Anfitrión · ${e.ico} ${e.nom}`;
+        irA('scrSala'); refrescarLobby(); anfDifundir();
+      };
+      gridEsc.appendChild(b);
+    });
+  });
+})();
+
+/* ==================== ANFITRIÓN: iniciar y motor del juego ==================== */
+function esc(){ return ESCENARIOS.find(e=>e.id===ESTADO.escId); }
+function escenasActuales(){
+  const e=esc();
+  if(e.ruta) return ESTADO.rutaElegida==='A'?e.escenasA:e.escenasB;
+  return e.escenas;
+}
+function logPush(clase,quien,texto,tit){
+  ESTADO.log.push(tit?{clase,quien,texto,tit}:{clase,quien,texto});
+  if(ESTADO.log.length>60) ESTADO.log=ESTADO.log.slice(-60);
+}
+function anfIniciarPartida(){
+  const e=esc();
+  ESTADO.fase='eligiendo';
+  ESTADO.banner={ico:e.ico, nom:e.nom.toUpperCase()};
+  anfDifundir();
+  // espera a que todos elijan; el anfitrión vigila y habilita el arranque real
+  esperarElecciones();
+}
+function esperarElecciones(){
+  const todos=ESTADO.jugadores.filter(j=>j.conectado);
+  const listos=todos.every(j=>j.arqId);
+  if(listos && todos.length>=3){
+    arrancarNarracion();
+  }else{
+    // re-chequear cuando lleguen elecciones (anfRecibe llama anfDifundir → render)
+    ESTADO._esperando=true;
+  }
+}
+function arrancarNarracion(){
+  ESTADO._esperando=false;
+  ESTADO.fase='jugando';
+  ESTADO.log=[];
+  ESTADO.escIdx=-1; ESTADO.turnoIdx=0; ESTADO.actoActual=0;
+  const e=esc();
+  logPush('narrador','📜 Narrador', e.intro);
+  if(e.ruta){ ESTADO.ui={modo:'ruta', data:null}; anfDifundir(); }
+  else { anfDifundir(); anfAvanzar(); }
+}
+function anfElegirRuta(clave){
+  ESTADO.rutaElegida=clave;
+  const e=esc();
+  const t=e.rutas.find(r=>r.clave===clave).t;
+  logPush('sistema','🧭 Camino', t);
+  ESTADO.ui={modo:'espera',data:null};
+  anfDifundir(); anfAvanzar();
+}
+function quienActua(escena){
+  let j;
+  if(escena.pref) j=ESTADO.jugadores.find(x=>x.arqId===escena.pref && x.conectado);
+  if(!j){
+    const activos=ESTADO.jugadores.filter(x=>x.conectado);
+    j=activos[ESTADO.turnoIdx%activos.length]; ESTADO.turnoIdx++;
+  }
+  return j;
+}
+function anfAvanzar(){
+  const escenas=escenasActuales();
+  ESTADO.escIdx++;
+  if(ESTADO.escIdx>=escenas.length){ anfFinalizar(); return; }
+  const escena=escenas[ESTADO.escIdx];
+  if(escena.acto!==ESTADO.actoActual) anfDescanso(escena.acto);
+  const j=quienActua(escena);
+  if(j.animo<=0){
+    const ayudante=ESTADO.jugadores.find(x=>x!==j&&x.animo>0&&x.conectado)||j;
+    j.animo=1;
+    logPush('sistema','🤝 Auxilio', `${j.nombre} estaba abatido; ${ayudante===j?'un momento de descanso':ayudante.nombre} lo reanima (+1 ❤️)`);
+  }
+  const txt=`${escena.tit.toUpperCase()}\n${escena.txt.replaceAll('{n}',j.nombre)}`;
+  logPush('narrador','📜 Narrador', escena.txt.replaceAll('{n}',j.nombre), escena.tit);
+  ESTADO.turnoActual=j.id; ESTADO.turnoNombre=j.nombre;
+  if(escena.tipo==='eleccion'){
+    ESTADO.ui={modo:'eleccion', jugId:j.id, jugNombre:j.nombre,
+      pide:escena.txt.replaceAll('{n}',j.nombre),
+      ops:escena.ops.map(o=>({t:o.t}))};
+    ESTADO._escenaPend=escena;
+  }else{
+    prepararTiradaAnf(escena, j, escena);
+  }
+  anfDifundir();
+}
+function anfDescanso(acto){
+  ESTADO.actoActual=acto;
+  ESTADO.acto=['I','II','III'][acto-1];
+  if(acto>1){
+    ESTADO.jugadores.forEach(j=>{ j.animo=Math.min(3,j.animo+1); });
+    let extra='';
+    if(ESTADO.jugadores.some(j=>j.arqId==='cuidador')){
+      const debil=ESTADO.jugadores.reduce((a,b)=>a.animo<=b.animo?a:b);
+      debil.animo=Math.min(3,debil.animo+1);
+      extra=` El Bálsamo del Cuidador da 1 ❤️ extra a ${debil.nombre}.`;
+    }
+    logPush('sistema','🌙 Descanso', `Comienza el Acto ${ESTADO.acto}. Todos recuperan 1 ❤️.`+extra);
+  }
+}
+function prepararTiradaAnf(fuente, j, escOrig){
+  const {mod,notas}=modTotal(j, fuente.atr, fuente.tag||escOrig.tag);
+  ESTADO._tirada={jugId:j.id, atr:fuente.atr, tag:fuente.tag||escOrig.tag, e:fuente.e, p:fuente.p, f:fuente.f, mod, notas};
+  ESTADO.ui={modo:'tirada', jugId:j.id, jugNombre:j.nombre, atr:fuente.atr, mod, notas, estado:'porTirar'};
+}
+function anfAplicarEleccion(idx){
+  const escena=ESTADO._escenaPend; if(!escena) return;
+  const op=escena.ops[idx];
+  const j=ESTADO.jugadores.find(x=>x.id===ESTADO.turnoActual);
+  logPush('sistema','🗳️ Decisión', op.t);
+  prepararTiradaAnf(op, j, escena);
+  anfDifundir();
+}
+function anfProcesarTirada(d1,d2){
+  const T=ESTADO._tirada; if(!T) return;
+  const total=d1+d2+T.mod;
+  let clasif,cls;
+  if(total>=10){clasif='ÉXITO COMPLETO';cls='exito'}
+  else if(total>=7){clasif='ÉXITO CON COSTO';cls='parcial'}
+  else{clasif='COMPLICACIÓN';cls='fallo'}
+  ESTADO._ultTirada={d1,d2,mod:T.mod,total,clasif,cls};
+  ESTADO.ui={modo:'tirada', jugId:T.jugId, jugNombre:ESTADO.turnoNombre, atr:T.atr, mod:T.mod, notas:T.notas,
+    estado:'resuelto', d1,d2,total,clasif,cls,
+    puedeRepetir: (ESTADO.jugadores.find(x=>x.id===T.jugId).animo>0)};
+  anfDifundir();
+}
+function anfRepetir(){
+  const T=ESTADO._tirada; const j=ESTADO.jugadores.find(x=>x.id===T.jugId);
+  if(!j||j.animo<=0) return;
+  j.animo--;
+  logPush('sistema','⚖️ Ánimo', `${j.nombre} gasta 1 ❤️ para intentarlo de nuevo (${j.animo} restantes)`);
+  ESTADO.ui={modo:'tirada', jugId:T.jugId, jugNombre:j.nombre, atr:T.atr, mod:T.mod, notas:T.notas, estado:'porTirar'};
+  anfDifundir();
+}
+function anfAceptarTirada(){    // llamado desde el botón del anfitrión-narrador
+  const T=ESTADO._tirada, R=ESTADO._ultTirada, j=ESTADO.jugadores.find(x=>x.id===T.jugId);
+  logPush('sistema','🎲 Dados', `${j.nombre}: ${R.total} — ${R.clasif}`);
+  let texto, perdida=0;
+  if(R.total>=10) texto=T.e; else if(R.total>=7) texto=T.p; else {texto=T.f; perdida=1;}
+  logPush('narrador','📜 Narrador', texto.replaceAll('{n}',j.nombre));
+  if(perdida){ j.animo=Math.max(0,j.animo-1);
+    logPush('sistema','⚖️ Ánimo', `${j.nombre} pierde 1 ❤️${j.animo===0?' y queda abatido 😵':''}`); }
+  ESTADO._tirada=null; ESTADO._ultTirada=null;
+  ESTADO.ui={modo:'continuar', data:null};
+  anfDifundir();
+}
+function anfFinalizar(){
+  const e=esc();
+  const lista=ESTADO.jugadores.map(j=>{
+    const a=ARQUETIPOS.find(x=>x.id===j.arqId);
+    return `${a.ico} ${j.nombre}, ${j.genero==='m'?a.m.toLowerCase():a.f.toLowerCase()}, ${EPI_ARQ[j.arqId]}.`;
+  }).join('\n');
+  let epi=e.epilogo.replace('{lista}',lista);
+  if(e.ruta) epi=epi.replace('{rutaFin}', ESTADO.rutaElegida==='A'?e.finA:e.finB);
+  ESTADO.fase='fin'; ESTADO.epilogo=epi; ESTADO.finTitulo=e.nom;
+  anfDifundir();
+}
+
+/* ==================== JUGADOR: unirse ==================== */
+let jugTmp={genero:'m', arqId:null};
+function unirseSala(){
+  const codigo=document.getElementById('inpCodigo').value.trim().toUpperCase();
+  const nombre=document.getElementById('inpNombreJug').value.trim();
+  if(codigo.length!==4){ document.getElementById('estUnirse').textContent='El código son 4 letras.'; return; }
+  if(!nombre){ document.getElementById('estUnirse').textContent='Escribe tu nombre.'; return; }
+  ROL='jugador';
+  const est=document.getElementById('estUnirse'); est.className='estado-red'; est.textContent='Conectando…';
+  peer=new Peer({debug:1});
+  peer.on('open', ()=>{
+    connAnf=peer.connect(PREFIJO+codigo, {reliable:true});
+    connAnf.on('open', ()=>{
+      connAnf.send(JSON.stringify({t:'hola', nombre}));
+      est.className='estado-red ok'; est.textContent='¡Conectado! Esperando…';
+    });
+    connAnf.on('data', d=>jugRecibe(JSON.parse(d)));
+    connAnf.on('close', ()=>{ est.className='estado-red err'; est.textContent='Se perdió la conexión con el anfitrión.'; });
+  });
+  peer.on('error', e=>{
+    est.className='estado-red err';
+    est.textContent = e.type==='peer-unavailable' ? 'No existe una sala con ese código.' : 'Error de conexión: '+e.type;
+  });
+}
+function jugRecibe(msg){
+  if(msg.t==='tuId'){ MI_ID=msg.id; ESTADO.escId=msg.escId;
+    const e=esc(); if(e) document.documentElement.style.setProperty('--acc',e.color);
+  }
+  else if(msg.t==='estado'){
+    Object.assign(ESTADO, msg.estado);
+    const e=esc(); if(e) document.documentElement.style.setProperty('--acc',e.color);
+    render();
+  }
+}
+
+/* ==================== JUGADOR: elegir personaje ==================== */
+function montarElegirPj(){
+  const e=esc();
+  document.getElementById('elegirSub').textContent = e? `${e.ico} ${e.nom}` : '';
+  const gcont=document.getElementById('elegirGen'); gcont.innerHTML='';
+  [['m','♂ Hombre'],['f','♀ Mujer']].forEach(([g,txt])=>{
+    const b=document.createElement('button'); b.className='chip'+(jugTmp.genero===g?' sel':'');
+    b.textContent=txt; b.onclick=()=>{ jugTmp.genero=g; montarElegirPj(); };
+    gcont.appendChild(b);
+  });
+  const acont=document.getElementById('elegirArqs'); acont.innerHTML='';
+  ARQUETIPOS.forEach(a=>{
+    const ocupado=ESTADO.jugadores.some(j=>j.id!==MI_ID && j.arqId===a.id);
+    const b=document.createElement('button'); b.className='chip'+(jugTmp.arqId===a.id?' sel':''); b.disabled=ocupado;
+    b.textContent=`${a.ico} ${jugTmp.genero==='m'?a.m:a.f}`;
+    b.onclick=()=>{ jugTmp.arqId=a.id; montarElegirPj(); };
+    acont.appendChild(b);
+  });
+  const det=document.getElementById('elegirDet');
+  const a=ARQUETIPOS.find(x=>x.id===jugTmp.arqId);
+  if(a){ det.style.display='block'; const s=a.stats;
+    det.innerHTML=`✋ <b style="color:var(--pergamino)">Habilidad:</b> ${a.hab}<br>⚖️ <b style="color:var(--pergamino)">Debilidad:</b> ${a.deb}
+      <div class="stats">FUE ${f(s.fuerza)} · AGI ${f(s.agilidad)} · ING ${f(s.ingenio)} · CAR ${f(s.carisma)} · FE ${f(s.fe)}</div>`;
+  } else det.style.display='none';
+  document.getElementById('btnConfirmarPj').disabled=!jugTmp.arqId;
+}
+function jugConfirmarPj(){
+  jugEnviar({t:'eligePj', id:MI_ID, genero:jugTmp.genero, arqId:jugTmp.arqId});
+  document.getElementById('btnConfirmarPj').disabled=true;
+  document.getElementById('estElegir').textContent='¡Listo! Esperando a los demás y al anfitrión…';
+}
+
+/* ==================== JUGADOR: acciones en su turno ==================== */
+function esMiTurno(){ return ESTADO.ui && ESTADO.ui.jugId===MI_ID; }
+function jugTirar(){
+  const d1=document.getElementById('d1'), d2=document.getElementById('d2');
+  d1.classList.add('girando'); d2.classList.add('girando');
+  document.getElementById('btnTirar').disabled=true;
+  let ticks=0;
+  const int=setInterval(()=>{
+    d1.textContent=1+Math.floor(Math.random()*6);
+    d2.textContent=1+Math.floor(Math.random()*6);
+    if(++ticks>=10){
+      clearInterval(int); d1.classList.remove('girando'); d2.classList.remove('girando');
+      const a=parseInt(d1.textContent), b=parseInt(d2.textContent);
+      if(ROL==='anfitrion') anfProcesarTirada(a,b);
+      else jugEnviar({t:'tirada', d1:a, d2:b});
+      document.getElementById('btnTirar').disabled=false;
+    }
+  },90);
+}
+function jugRepetir(){ if(ROL==='anfitrion') anfRepetir(); else jugEnviar({t:'repetir'}); }
+function jugAceptar(){ if(ROL==='anfitrion') anfAceptarTirada(); /* jugador: el anfitrión narra; ver render */ }
+function jugElegir(idx){ if(ROL==='anfitrion') anfAplicarEleccion(idx); else jugEnviar({t:'eleccion', idx}); }
+
+/* ==================== RENDER (reacciona al ESTADO) ==================== */
+let _logDibujado=0, _uiFirma='';
+function render(){
+  // --- Fase lobby / eligiendo escenario ---
+  if(ESTADO.fase==='lobby'){
+    if(ROL==='jugador'){ irA('scrElegirPj'); }  // el jugador espera aquí hasta que empiece la elección
+    if(ROL==='anfitrion') refrescarLobby();
+    return;
+  }
+  if(ESTADO.fase==='eligiendo'){
+    if(ROL==='jugador'){
+      irA('scrElegirPj');
+      const yo=ESTADO.jugadores.find(j=>j.id===MI_ID);
+      if(yo && yo.arqId){ document.getElementById('estElegir').textContent='¡Listo! Esperando al anfitrión…'; }
+      else montarElegirPj();
+    }
+    if(ROL==='anfitrion'){
+      refrescarLobby();
+      // ¿ya todos eligieron? intenta arrancar
+      if(ESTADO._esperando){
+        const todos=ESTADO.jugadores.filter(j=>j.conectado);
+        if(todos.length>=3 && todos.every(j=>j.arqId)) arrancarNarracion();
+      }
+    }
+    return;
+  }
+  if(ESTADO.fase==='fin'){
+    document.getElementById('finTitulo').textContent=ESTADO.finTitulo||'';
+    document.getElementById('epilogoTxt').textContent=ESTADO.epilogo||'';
+    irA('scrFin');
+    return;
+  }
+  // --- Fase jugando ---
+  irA('scrJuego');
+  document.getElementById('banIco').textContent=ESTADO.banner.ico;
+  document.getElementById('banNom').textContent=ESTADO.banner.nom;
+  document.getElementById('banActo').textContent='Acto '+ESTADO.acto;
+  pintarJugadores(ESTADO.turnoNombre);
+
+  // Reconstruir el log si cambió
+  if(ESTADO.log.length!==_logDibujado){
+    const log=document.getElementById('log'); log.innerHTML='';
+    ESTADO.log.forEach(m=>{
+      const d=document.createElement('div'); d.className='msg '+m.clase;
+      const cuerpo = m.tit ? `<div class="titEsc">${m.tit.toUpperCase()}</div>${m.texto}` : '';
+      d.innerHTML=`<div class="quien">${m.quien}</div><div class="cuerpo">${cuerpo}</div>`;
+      if(!m.tit) d.querySelector('.cuerpo').textContent=m.texto;
+      log.appendChild(d);
+    });
+    log.scrollTop=log.scrollHeight;
+    // narrar el último mensaje del narrador si el audio está activo
+    const ults=[...log.querySelectorAll('.msg.narrador')];
+    if(vozActiva && ults.length && ESTADO.log.length>_logDibujado){
+      narrar(ults[ults.length-1].querySelector('.cuerpo').textContent, ults[ults.length-1]);
+    }
+    _logDibujado=ESTADO.log.length;
+  }
+
+  // Zonas de acción
+  const zEspera=document.getElementById('zonaEspera');
+  const zOps=document.getElementById('zonaOpciones');
+  const zDados=document.getElementById('zonaDados');
+  const btnCont=document.getElementById('btnCont');
+  zEspera.style.display='none'; zOps.classList.remove('on'); zDados.classList.remove('on'); btnCont.style.display='none';
+
+  const ui=ESTADO.ui||{modo:'espera'};
+  const miTurno = ui.jugId===MI_ID;
+  const soyAnf = ROL==='anfitrion';
+
+  if(ui.modo==='ruta'){
+    // Solo el anfitrión elige la ruta de Babilonia
+    if(soyAnf){
+      zOps.classList.add('on');
+      document.getElementById('opsPide').textContent='El grupo elige su camino';
+      const cont=document.getElementById('opsBtns'); cont.innerHTML='';
+      esc().rutas.forEach(r=>{
+        const b=document.createElement('button'); b.className='btn secundario'; b.textContent=r.t;
+        b.onclick=()=>anfElegirRuta(r.clave); cont.appendChild(b);
+      });
+    }else{
+      zEspera.style.display='block'; zEspera.textContent='El anfitrión elige el camino…';
+    }
+    return;
+  }
+  if(ui.modo==='eleccion'){
+    if(miTurno){
+      zOps.classList.add('on');
+      document.getElementById('opsPide').textContent='Te toca decidir';
+      const cont=document.getElementById('opsBtns'); cont.innerHTML='';
+      ui.ops.forEach((o,idx)=>{
+        const b=document.createElement('button'); b.className='btn secundario'; b.textContent=o.t;
+        b.onclick=()=>jugElegir(idx); cont.appendChild(b);
+      });
+    }else{
+      zEspera.style.display='block';
+      zEspera.textContent=`${ui.jugNombre} decide qué hacer…`;
+    }
+    return;
+  }
+  if(ui.modo==='tirada'){
+    const firma=JSON.stringify(ui);
+    if(miTurno){
+      zDados.classList.add('on');
+      document.getElementById('dadoPide').textContent=`${ui.jugNombre}: tirada de ${NOM_ATR[ui.atr]} (${f(ui.mod)})`+(ui.notas&&ui.notas.length?` · ${ui.notas.join(', ')}`:'');
+      const bT=document.getElementById('btnTirar'), bR=document.getElementById('btnRepetir'), bA=document.getElementById('btnAceptar');
+      if(ui.estado==='porTirar'){
+        if(_uiFirma!==firma){ document.getElementById('d1').textContent='?'; document.getElementById('d2').textContent='?'; document.getElementById('resDado').innerHTML=''; }
+        bT.style.display='inline-block'; bR.style.display='none'; bA.style.display='none';
+      }else{ // resuelto
+        document.getElementById('d1').textContent=ui.d1; document.getElementById('d2').textContent=ui.d2;
+        document.getElementById('resDado').innerHTML=`${ui.d1} + ${ui.d2} ${ui.mod?(ui.mod>0?'+ ':'− ')+Math.abs(ui.mod)+' ('+NOM_ATR[ui.atr]+')':''} = <b>${ui.total}</b><span class="clasif ${ui.cls}">${ui.clasif}</span>`;
+        bT.style.display='none';
+        bR.style.display = ui.puedeRepetir?'inline-block':'none';
+        bA.style.display='inline-block';
+        // El JUGADOR no narra: al aceptar, pide al anfitrión que resuelva
+        bA.onclick = soyAnf ? anfAceptarTirada : ()=>jugEnviar({t:'aceptar'});
+      }
+    }else{
+      zDados.classList.add('on');
+      document.getElementById('dadoPide').textContent=`${ui.jugNombre}: tirada de ${NOM_ATR[ui.atr]} (${f(ui.mod)})`;
+      if(ui.estado==='resuelto'){
+        document.getElementById('d1').textContent=ui.d1; document.getElementById('d2').textContent=ui.d2;
+        document.getElementById('resDado').innerHTML=`${ui.d1} + ${ui.d2} = <b>${ui.total}</b><span class="clasif ${ui.cls}">${ui.clasif}</span>`;
+      }else{
+        document.getElementById('d1').textContent='?'; document.getElementById('d2').textContent='?'; document.getElementById('resDado').innerHTML='';
+      }
+      document.getElementById('btnTirar').style.display='none';
+      document.getElementById('btnRepetir').style.display='none';
+      document.getElementById('btnAceptar').style.display='none';
+      // Si soy el anfitrión y la tirada está resuelta, YO avanzo la narración
+      if(soyAnf && ui.estado==='resuelto'){
+        zEspera.style.display='block'; zEspera.innerHTML='';
+        const b=document.createElement('button'); b.className='btn'; b.textContent='Narrar el resultado ➜';
+        b.onclick=anfAceptarTirada; zEspera.appendChild(b);
+      }else{
+        // espera visible bajo los dados
+      }
+    }
+    _uiFirma=firma;
+    return;
+  }
+  if(ui.modo==='continuar'){
+    if(soyAnf){ btnCont.style.display='inline-block'; }
+    else{ zEspera.style.display='block'; zEspera.textContent='El narrador prepara la siguiente escena…'; }
+    return;
+  }
+  // modo espera genérico
+  zEspera.style.display='block';
+  zEspera.textContent = soyAnf ? '' : 'Esperando…';
+}
+
+/* El jugador puede pedir "aceptar" → el anfitrión lo procesa */
+(function(){
+  const origAnfRecibe=anfRecibe;
+  anfRecibe=function(conn,msg){
+    if(msg.t==='aceptar'){ anfAceptarTirada(); return; }
+    origAnfRecibe(conn,msg);
+  };
+})();
+
+/* Normaliza logPush (acepta título opcional) */
+
+/* ==================== INICIO ==================== */
+document.addEventListener('DOMContentLoaded',()=>{
+  const inp=document.getElementById('inpCodigo');
+  if(inp) inp.addEventListener('input',()=>{ inp.value=inp.value.toUpperCase(); });
+});
+</script>
+</body>
+</html>
